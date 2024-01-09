@@ -151,7 +151,7 @@ def retrieval_qa_pipline(device_type, use_history, promptTemplate_type="llama", 
     )
     retriever = db.as_retriever()
     embeddings_filter = EmbeddingsFilter(embeddings=embeddings, similarity_threshold=0.8)
-    compression_retriever = ContextualCompressionRetriever(
+    retriever = ContextualCompressionRetriever(
         base_compressor=embeddings_filter, base_retriever=retriever
     )
 
@@ -168,7 +168,7 @@ def retrieval_qa_pipline(device_type, use_history, promptTemplate_type="llama", 
         qa = RetrievalQA.from_chain_type(
             llm=llm,
             chain_type="stuff",  # try other chains types as well. refine, map_reduce, map_rerank
-            retriever=compression_retriever,
+            retriever=retriever,
             return_source_documents=True,  # verbose=True,
             callbacks=callback_manager,
             chain_type_kwargs={"prompt": prompt, "memory": memory},
@@ -177,7 +177,7 @@ def retrieval_qa_pipline(device_type, use_history, promptTemplate_type="llama", 
         qa = RetrievalQA.from_chain_type(
             llm=llm,
             chain_type="stuff",  # try other chains types as well. refine, map_reduce, map_rerank
-            retriever=compression_retriever,
+            retriever=retriever,
             return_source_documents=True,  # verbose=True,
             callbacks=callback_manager,
             chain_type_kwargs={
