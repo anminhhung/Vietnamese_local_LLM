@@ -11,6 +11,12 @@ from langchain.llms import HuggingFacePipeline
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler  # for streaming response
 from langchain.callbacks.manager import CallbackManager
 from nlp_preprocessing import Translation
+from langchain.retrievers.document_compressors import EmbeddingsFilter
+from langchain.retrievers import ContextualCompressionRetriever
+from langchain.schema.retriever import BaseRetriever, Document
+from langchain.callbacks.manager import CallbackManagerForRetrieverRun
+
+from typing import List 
 
 callback_manager = CallbackManager([StreamingStdOutCallbackHandler()])
 
@@ -39,6 +45,12 @@ from constants import (
     MODELS_PATH,
     CHROMA_SETTINGS
 )
+
+class DummyRetriever(BaseRetriever):
+    def _get_relevant_documents(
+        self, query: str, *, run_manager: CallbackManagerForRetrieverRun
+    ) -> List[Document]:
+        return []
 
 
 def load_model(device_type, model_id, model_basename=None, LOGGING=logging):
@@ -104,7 +116,7 @@ def load_model(device_type, model_id, model_basename=None, LOGGING=logging):
     return local_llm
 
 
-def retrieval_qa_pipline(device_type, use_history, promptTemplate_type="llama"):
+def retrieval_qa_pipline(device_type, use_history, promptTemplate_type="llama", use_retriever=True):
     """
     Initializes and returns a retrieval-based Question Answering (QA) pipeline.
 
@@ -138,6 +150,13 @@ def retrieval_qa_pipline(device_type, use_history, promptTemplate_type="llama"):
         client_settings=CHROMA_SETTINGS
     )
     retriever = db.as_retriever()
+    embeddings_filter = EmbeddingsFilter(embeddings=embeddings, similarity_threshold=0.8)
+    compression_retriever = ContextualCompressionRetriever(
+        base_compressor=embeddings_filter, base_retriever=retriever
+    )
+
+    if not use_retriever:
+        retriever = DummyRetriever()
 
     # get the prompt template and memory if set by the user.
     prompt, memory = get_prompt_template(promptTemplate_type=promptTemplate_type, history=use_history)
@@ -149,7 +168,7 @@ def retrieval_qa_pipline(device_type, use_history, promptTemplate_type="llama"):
         qa = RetrievalQA.from_chain_type(
             llm=llm,
             chain_type="stuff",  # try other chains types as well. refine, map_reduce, map_rerank
-            retriever=retriever,
+            retriever=compression_retriever,
             return_source_documents=True,  # verbose=True,
             callbacks=callback_manager,
             chain_type_kwargs={"prompt": prompt, "memory": memory},
@@ -158,7 +177,7 @@ def retrieval_qa_pipline(device_type, use_history, promptTemplate_type="llama"):
         qa = RetrievalQA.from_chain_type(
             llm=llm,
             chain_type="stuff",  # try other chains types as well. refine, map_reduce, map_rerank
-            retriever=retriever,
+            retriever=compression_retriever,
             return_source_documents=True,  # verbose=True,
             callbacks=callback_manager,
             chain_type_kwargs={
@@ -226,13 +245,27 @@ def retrieval_qa_pipline(device_type, use_history, promptTemplate_type="llama"):
 )
 
 @click.option(
-    "--translate_output",
-    "-t",
+    "--no_retriever",
+    "-nr",
     is_flag=True,
-    help="translate answer to VN lang",
+    help="No context"
 )
 
-def main(device_type, show_sources, use_history, model_type, save_qa, translate_output):
+@click.option(
+    "--translate_input",
+    "-ti",
+    is_flag=True,
+    help="translate question from Vi to Eng"
+)
+
+@click.option(
+    "--translate_output",
+    "-to",
+    is_flag=True,
+    help="translate answer to Vi",
+)
+
+def main(device_type, show_sources, use_history, model_type, save_qa, no_retriever, translate_input, translate_output):
     """
     Implements the main information retrieval task for a localGPT.
 
@@ -261,14 +294,18 @@ def main(device_type, show_sources, use_history, model_type, save_qa, translate_
     if not os.path.exists(MODELS_PATH):
         os.mkdir(MODELS_PATH)
 
-    qa = retrieval_qa_pipline(device_type, use_history, promptTemplate_type=model_type)
-    translater = Translation(from_lang="en", to_lang='vi', mode='translate') 
+    qa = retrieval_qa_pipline(device_type, use_history, promptTemplate_type=model_type, use_retriever=not no_retriever)
     # Interactive questions and answers
     while True:
         query = input("\nEnter a query: ")
         if query == "exit":
             break
         # Get the answer from the chain
+        if translate_input:
+            query_lang = detect(query)
+            translater = Translation(from_lang=query_lang, to_lang='en', mode='translate') 
+
+            query = translater(query)
         res = qa(query)
         answer, docs = res["result"], res["source_documents"]
 

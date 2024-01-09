@@ -1,0 +1,6 @@
+__pycache__/
+DB/
+file_ingest.log
+models/
+myEnv/
+SOURCE_ZALO_MATH/
