@@ -22,7 +22,7 @@ urllib3==1.26.6
 accelerate
 bitsandbytes ; sys_platform != 'win32'
 bitsandbytes-windows ; sys_platform == 'win32'
-click
+# click
 flask
 requests
 
@@ -36,3 +36,5 @@ openpyxl
 # translation
 googletrans
 translate
+
+easydict==1.9.0

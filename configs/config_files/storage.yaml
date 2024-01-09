@@ -1,0 +1,8 @@
+STORAGE:
+  SOURCE_DIRECTORY: "SOURCE_DOCUMENTS"
+  DB: "DB"
+  MODELS: "models"
+
+  INGEST_LOG: "logs/file_ingest.log"
+  HISTORY_DIR: "local_chat_history"
+  HISTORY_FILE: "qa_log.csv"

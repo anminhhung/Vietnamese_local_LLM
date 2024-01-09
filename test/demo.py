@@ -1,8 +1,8 @@
 import os
 import logging
-# import click
+import click
 import torch
-import src.utils as utils
+import utils
 from langdetect import detect
 
 from langchain.chains import RetrievalQA
@@ -10,7 +10,7 @@ from langchain.embeddings import HuggingFaceInstructEmbeddings
 from langchain.llms import HuggingFacePipeline
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler  # for streaming response
 from langchain.callbacks.manager import CallbackManager
-from src.nlp_preprocessing import Translation
+from nlp_preprocessing import Translation
 from langchain.retrievers.document_compressors import EmbeddingsFilter
 from langchain.retrievers import ContextualCompressionRetriever
 from langchain.schema.retriever import BaseRetriever, Document
@@ -20,7 +20,7 @@ from typing import List
 
 callback_manager = CallbackManager([StreamingStdOutCallbackHandler()])
 
-from src.prompt_template_utils import get_prompt_template
+from prompt_template_utils import get_prompt_template
 
 # from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 from langchain.vectorstores import Chroma
@@ -29,22 +29,21 @@ from transformers import (
     pipeline,
 )
 
-from src.load_models import (
+from load_models import (
     load_quantized_model_awq,
     load_quantized_model_gguf_ggml,
     load_quantized_model_qptq,
     load_full_model,
 )
 
-from src.constants import (
+from constants import (
     EMBEDDING_MODEL_NAME,
     PERSIST_DIRECTORY,
     MODEL_ID,
     MODEL_BASENAME,
     MAX_NEW_TOKENS,
     MODELS_PATH,
-    CHROMA_SETTINGS,
-    cfg
+    CHROMA_SETTINGS
 )
 
 import streamlit as st
@@ -192,12 +191,32 @@ def retrieval_qa_pipline(device_type="cpu", use_history=False, promptTemplate_ty
 
     return qa
 
-def run_app(qa_pipeline):    
+
+# @click.command()
+# @click.option("--device_type", default="cuda" if torch.cuda.is_available() else "cpu", 
+#               type=click.Choice(["cpu", "cuda", "ipu", "xpu", "mkldnn", "opengl", "opencl", "ideep", "hip", 
+#                                  "ve", "fpga", "ort", "xla", "lazy", "vulkan", "mps", "meta", "hpu", "mtia"]),
+#               help="Device to run on. (Default is cuda)")
+# @click.option("--show_sources", "-s", default=False, help="Show sources along with answers (Default is False)")
+# @click.option("--use_history", "-h", default=True, help="Use history (Default is False)")
+# @click.option("--model_type", default="llama", type=click.Choice(["llama", "mistral", "non_llama"]),
+#               help="model type, llama, mistral or non_llama")
+# @click.option("--save_qa", default=True, help="whether to save Q&A pairs to a CSV file (Default is False)")
+# @click.option("--translate_output", "-t", default=True, help="translate answer to VN lang")
+
+def main(qa_pipeline):    
     st.title("💬 Chatbot")
     st.caption("🚀 I'm a Local Bot")
     
     # show source use to debug
     # show_sources = st.checkbox("Show sources", value=False)
+
+    # logging.info(f"Running on: {device_type}")
+    # logging.info(f"Display Source Documents set to: {show_sources}")
+    # logging.info(f"Use history set to: {use_history}")
+
+    if not os.path.exists(MODELS_PATH):
+        os.mkdir(MODELS_PATH)
 
     if "messages" not in st.session_state:
         st.session_state.messages = [{"role": "assistant", "content": "Tôi có thể giúp gì được cho bạn?"}]
@@ -206,6 +225,7 @@ def run_app(qa_pipeline):
         st.chat_message(msg["role"]).write(msg["content"])
         
     # Initialize the QA system using caching
+    # qa = retrieval_qa_pipline(device_type, use_history, promptTemplate_type=model_type)
     # translater = Translation(from_lang="en", to_lang='vi', mode='translate') 
 
     if query := st.chat_input():
@@ -231,17 +251,15 @@ def run_app(qa_pipeline):
         #     for document in docs:
         #         response += "\n> " + document.metadata["source"] + ":\n" + document.page_content
         #     response += "----------------------------------SOURCE DOCUMENTS---------------------------\n"
-        
-        # save_qa
-        utils.log_to_csv(query, answer)
+        # if save_qa:
+        #     utils.log_to_csv(query, answer)
             
         st.chat_message("assistant").write(response)
 
 if __name__ == "__main__":
     logging.basicConfig(format="%(asctime)s - %(levelname)s - %(filename)s:%(lineno)s - %(message)s", level=logging.INFO)
-
-    if not os.path.exists(MODELS_PATH):
-        os.mkdir(MODELS_PATH)
-
-    qa = retrieval_qa_pipline(cfg.MODEL.DEVICE, cfg.MODEL.USE_HISTORY, cfg.MODEL.MODEL_TYPE, cfg.MODEL.USE_RETRIEVER)
-    run_app(qa)
+    # logging.info(f"Running on: {device_type}")
+    # logging.info(f"Display Source Documents set to: {show_sources}")
+    # logging.info(f"Use history set to: {use_history}")
+    qa = retrieval_qa_pipline("cpu", False, promptTemplate_type="llama")
+    main(qa)
