@@ -60,5 +60,9 @@ EMBEDDING_MODEL_NAME = "intfloat/multilingual-e5-base"
 MODEL_ID  = "vilm/vinallama-7b-chat-GGUF"
 MODEL_BASENAME = "vinallama-7b-chat_q5_0.gguf"
 
-# MODEL_ID = "TheBloke/Mixtral-8x7B-Instruct-v0.1-GGUF"
-# MODEL_BASENAME = "mixtral-8x7b-instruct-v0.1.Q4_K_M.gguf"
+# MODEL_ID  = "TheBloke/TinyLlama-1.1B-Chat-v0.3-GGUF"
+# MODEL_BASENAME = "tinyllama-1.1b-chat-v0.3.Q6_K.gguf"
+
+# MODEL_ID = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
+# MODEL_BASENAME = None
+

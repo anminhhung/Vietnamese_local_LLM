@@ -45,7 +45,7 @@ import streamlit as st
 from accelerate import Accelerator
 
 @st.cache_resource()
-def load_model(device_type, model_id, model_basename=None, LOGGING=logging):
+def load_model(device_type="cpu", model_id="", model_basename=None, LOGGING=logging):
     """
     Select a model for text generation using the HuggingFace library.
     If you are running this for the first time, it will download a model for you.
@@ -110,7 +110,7 @@ def load_model(device_type, model_id, model_basename=None, LOGGING=logging):
     return local_llm
 
 @st.cache_resource()
-def retrieval_qa_pipline(device_type, use_history, promptTemplate_type="llama"):
+def retrieval_qa_pipline(device_type="cpu", use_history=False, promptTemplate_type="llama"):
     """
     Initializes and returns a retrieval-based Question Answering (QA) pipeline.
 
@@ -175,28 +175,28 @@ def retrieval_qa_pipline(device_type, use_history, promptTemplate_type="llama"):
     return qa
 
 
-@click.command()
-@click.option("--device_type", default="cuda" if torch.cuda.is_available() else "cpu", 
-              type=click.Choice(["cpu", "cuda", "ipu", "xpu", "mkldnn", "opengl", "opencl", "ideep", "hip", 
-                                 "ve", "fpga", "ort", "xla", "lazy", "vulkan", "mps", "meta", "hpu", "mtia"]),
-              help="Device to run on. (Default is cuda)")
-@click.option("--show_sources", "-s", default=False, help="Show sources along with answers (Default is False)")
-@click.option("--use_history", "-h", default=True, help="Use history (Default is False)")
-@click.option("--model_type", default="llama", type=click.Choice(["llama", "mistral", "non_llama"]),
-              help="model type, llama, mistral or non_llama")
-@click.option("--save_qa", default=True, help="whether to save Q&A pairs to a CSV file (Default is False)")
-@click.option("--translate_output", "-t", default=False, help="translate answer to VN lang")
+# @click.command()
+# @click.option("--device_type", default="cuda" if torch.cuda.is_available() else "cpu", 
+#               type=click.Choice(["cpu", "cuda", "ipu", "xpu", "mkldnn", "opengl", "opencl", "ideep", "hip", 
+#                                  "ve", "fpga", "ort", "xla", "lazy", "vulkan", "mps", "meta", "hpu", "mtia"]),
+#               help="Device to run on. (Default is cuda)")
+# @click.option("--show_sources", "-s", default=False, help="Show sources along with answers (Default is False)")
+# @click.option("--use_history", "-h", default=True, help="Use history (Default is False)")
+# @click.option("--model_type", default="llama", type=click.Choice(["llama", "mistral", "non_llama"]),
+#               help="model type, llama, mistral or non_llama")
+# @click.option("--save_qa", default=True, help="whether to save Q&A pairs to a CSV file (Default is False)")
+# @click.option("--translate_output", "-t", default=True, help="translate answer to VN lang")
 
-def main(device_type, show_sources, use_history, model_type, save_qa, translate_output):    
+def main(qa_pipeline):    
     st.title("💬 Chatbot")
     st.caption("🚀 I'm a Local Bot")
     
     # show source use to debug
     # show_sources = st.checkbox("Show sources", value=False)
 
-    logging.info(f"Running on: {device_type}")
-    logging.info(f"Display Source Documents set to: {show_sources}")
-    logging.info(f"Use history set to: {use_history}")
+    # logging.info(f"Running on: {device_type}")
+    # logging.info(f"Display Source Documents set to: {show_sources}")
+    # logging.info(f"Use history set to: {use_history}")
 
     if not os.path.exists(MODELS_PATH):
         os.mkdir(MODELS_PATH)
@@ -208,8 +208,8 @@ def main(device_type, show_sources, use_history, model_type, save_qa, translate_
         st.chat_message(msg["role"]).write(msg["content"])
         
     # Initialize the QA system using caching
-    qa = retrieval_qa_pipline(device_type, use_history, promptTemplate_type=model_type)
-    translater = Translation(from_lang="en", to_lang='vi', mode='translate') 
+    # qa = retrieval_qa_pipline(device_type, use_history, promptTemplate_type=model_type)
+    # translater = Translation(from_lang="en", to_lang='vi', mode='translate') 
 
     if query := st.chat_input():
         st.session_state.messages.append({"role": "user", "content": query})
@@ -217,11 +217,11 @@ def main(device_type, show_sources, use_history, model_type, save_qa, translate_
         
         # Add spinner
         with st.spinner("Thinking..."):
-            res = qa(query)
+            res = qa_pipeline(query)
             answer, docs = res["result"], res["source_documents"]
 
-        if translate_output:
-            answer = translater(answer)
+        # if translate_output:
+        #     answer = translater(answer)
         
         st.session_state.messages.append({"role": "assistant", "content": answer})
         # st.chat_message("assistant").write(answer)
@@ -234,11 +234,15 @@ def main(device_type, show_sources, use_history, model_type, save_qa, translate_
         #     for document in docs:
         #         response += "\n> " + document.metadata["source"] + ":\n" + document.page_content
         #     response += "----------------------------------SOURCE DOCUMENTS---------------------------\n"
-        if save_qa:
-            utils.log_to_csv(query, answer)
+        # if save_qa:
+        #     utils.log_to_csv(query, answer)
             
         st.chat_message("assistant").write(response)
 
 if __name__ == "__main__":
     logging.basicConfig(format="%(asctime)s - %(levelname)s - %(filename)s:%(lineno)s - %(message)s", level=logging.INFO)
-    main()
+    # logging.info(f"Running on: {device_type}")
+    # logging.info(f"Display Source Documents set to: {show_sources}")
+    # logging.info(f"Use history set to: {use_history}")
+    qa = retrieval_qa_pipline("cpu", False, promptTemplate_type="llama")
+    main(qa)
