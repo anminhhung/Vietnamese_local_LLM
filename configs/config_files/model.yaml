@@ -5,6 +5,8 @@ MODEL:
   DEVICE: 'cpu' # ["cpu", "cuda", "ipu", "xpu", "mkldnn", "opengl", "opencl", "ideep", "hip", 
                 #  "ve", "fpga", "ort", "xla", "lazy", "vulkan", "mps", "meta", "hpu", "mtia"]
 
+  SIMILARITY_THRESHOLD: 0.8
+
   USE_HISTORY: FALSE
   USE_RETRIEVER: TRUE
 

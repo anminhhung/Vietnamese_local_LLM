@@ -155,7 +155,7 @@ def retrieval_qa_pipline(device_type="cpu", use_history=False, promptTemplate_ty
         client_settings=CHROMA_SETTINGS
     )
     retriever = db.as_retriever()
-    embeddings_filter = EmbeddingsFilter(embeddings=embeddings, similarity_threshold=0.8)
+    embeddings_filter = EmbeddingsFilter(embeddings=embeddings, similarity_threshold=cfg.MODEL.SIMILARITY_THRESHOLD)
     retriever = ContextualCompressionRetriever(
         base_compressor=embeddings_filter, base_retriever=retriever
     )
