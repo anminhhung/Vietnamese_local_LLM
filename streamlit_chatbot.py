@@ -5,6 +5,7 @@ import torch
 import src.utils as utils
 from langdetect import detect
 
+import langchain 
 from langchain.chains import RetrievalQA
 from langchain.embeddings import HuggingFaceInstructEmbeddings
 from langchain.llms import HuggingFacePipeline
@@ -15,6 +16,7 @@ from langchain.retrievers.document_compressors import EmbeddingsFilter
 from langchain.retrievers import ContextualCompressionRetriever
 from langchain.schema.retriever import BaseRetriever, Document
 from langchain.callbacks.manager import CallbackManagerForRetrieverRun
+from langchain.cache import SQLiteCache
 
 from typing import List 
 
@@ -243,5 +245,6 @@ if __name__ == "__main__":
     if not os.path.exists(MODELS_PATH):
         os.mkdir(MODELS_PATH)
 
+    langchain.llm_cache = SQLiteCache(database_path=cfg.STORAGE.CACHE_DB_PATH)
     qa = retrieval_qa_pipline(cfg.MODEL.DEVICE, cfg.MODEL.USE_HISTORY, cfg.MODEL.MODEL_TYPE, cfg.MODEL.USE_RETRIEVER)
     run_app(qa)

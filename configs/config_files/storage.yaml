@@ -1,6 +1,7 @@
 STORAGE:
   SOURCE_DIRECTORY: "SOURCE_DOCUMENTS"
   DB: "DB"
+  CACHE_DB_PATH: "DB/langchain_cache.db"
   MODELS: "models"
 
   INGEST_LOG: "logs/file_ingest.log"
