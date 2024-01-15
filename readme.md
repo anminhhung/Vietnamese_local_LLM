@@ -3,6 +3,7 @@
 ## Setup 
 ```
 pip3 install -r requirements.txt
+pip3 install -U "ray[default]"
 ```
 
 ## Extract feature & Store db 
