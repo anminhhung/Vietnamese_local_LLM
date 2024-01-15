@@ -1,0 +1,143 @@
+# Visual Question Answering - Project
+
+Ngay 4 thang 12 nam 2023
+
+**Phan I: Gioi thieu**
+
+**Visual Question Answering (VQA)** la mot bai toan pho bien tong hoc may, img dung cac ki thuatlien quan tir ca thi giac may tinh den xiv l ngon ngu tut nhien. Khai niem cct loi cua bai toan nay la phan tich mot hinh anh v tra la loi cau hoi ve hinh anh do. Cac he thong VQA dutoc su dung trong nhieu dung dung khac nhau, bao gom hto nguoi dung khiem thi hieu ro moi trong xung quanh ho, cong cup giao duc tong tac va tut dong hoa quan ly hoac dieu tiet hinh anh. Mot chutong trinh VQA thutong bao gom 2 buoc. Buoc dau la phan tinh thong tin dau vao, bao gom su dung cac ki thuat xiv l hinh anh va xiv l cyan noi dat ra bang ngon ngu tur nhien. Sau do he thong ket hop thong tin thu dutoc tir phan tich hinh anh va ngu tanh cau hoi de tao ra mot cau tra loi phu hop. Vi vay, mot chutong trinh co do chinh xac cao can xay dung tot ca hai thanh phan nay.
+
+Trong project nay, chuing ta se xay dung mot chutong trinh VQA su dung mo hinh CNN cho hinh anh va LSTM cho xiv l y ngon ngu. Input va output cua chutong trinh nht sau:
+
+* **Input:** Mot cap hinh anh va cau hoi bang ngon ngu tur nhien.
+* **Output:** Cau tra loi cho cau hoi ve hinh anh.
+
+[MISSING_PAGE_FAIL:2]
+
+[MISSING_PAGE_FAIL:3]
+
+* self.transform=transform
+* self.data=data
+* self.max_len=max_len
+* self.root_dir=root_dir
+* def__len__(self): returnlen(self.data)
+* def__getiem__(self,inder): image=Image.open(os.path.join(self.root_dir,self.data[index][' image_path']).convert('RGB')
+* ifself.transform: image=self.transform(image)
+* question=self.data[index]['question'] question=tokenize(question,self.max_len)
+* label=self.data[index]['answer'] returnimage,torch.LongTensor(question),label
+* 7. **Xay dung ham tien xu ly anh (transforms):** De dur lieu anh dau vao dutoc dong bo v kich thudoc cung nhur dong gian hoa, chung ta se xay dung ham tien xu ly anh nht sau:
+
+```
+1transform=T.Compose([
+2T.Resize((224,224)),
+3T.ToTensor(),
+4T.Normalize((0.485,0.456,0.406),(0.229,0.224,0.225)),
+5])
+6
+7
+8Cac ky thuat dutoc ap dung: resize anh, doi v tensor va chuan hoa gia tri pixel.
+* 8. **Khai bao datasets object cho ba bo train, val, test:**
+```
+1train_dataset=VQADataset(
+2train_data,
+3transform=transform
+4}
+5val_dataset=VQADataset(
+6val_data,
+7transform=transform
+8}
+9test_dataset=VQADataset(
+10test_data,
+11transform=transform
+12}
+13
+14
+15
+16Khai bao dataloader: Voi ba object datasets tren, ta khai bao gia tri batch size va tao dataloader nhut sau:
+
+```
+1train_batch_size=64
+2test_batch_size=128
+3
+4train_loader=DataLoader(
+5train_dataset,
+6batch_size=train_batch_size,
+7shuffle=True
+8}
+9val_loader=DataLoader(
+10val_dataset,
+11batch_size=test_batch_size,*shuffle=False
+*)
+*test_loader=DataLoader(
+*test_dataset,
+*batch_size=test_batch_size,
+*shuffle=False
+*)
+* ```
+*Xaydungmodel:Tongphannay,tasedungkientrucResnetchophanxutlyanhvakientrucLSTMchophanxutlyext.TasedungthutvientimmdeloadkientrucResNet50.Codecuaclassmodelsenhufsau:
+*importtimm
+*classVQAMModel(nn.Module):
+*def_init__(self,image_model='resnet50',embed_dim=300,hidden_dim=128) :
+*super(VQAMModel,self)__init__()
+*self.image_encoder=timm.create_model(image_model,pretrained=True,num_classes=hidden_dim)
+*self.embedding=nn.Embedding(len(vocab),embed_dim)
+*self.lstm=nn.LSTM(input_size=embed_dim,hidden_size=hidden_dim,batch_first=True,bidirectional=True)
+*self.fcl=nn.Linear(hidden_dim=3,256)
+*self.relu=nn.ReLU()
+*self.dropout=nn.Dropout(0.1)
+*self.fc2=nn.Linear(256,1)
+*self.sigmod=nn.Sigmoid()
+*defforward(self,image,text):
+*image_features=self.image_encoder(image)
+*text_emb=self.embedding(text)
+*lstm_out,_=self.lstm(text_emb)
+*lstm_out=torch.mean(lstm_out,1)
+*#Concatenateimageandtextfeatures combined=torch.cat((image_features,lstm_out),dim=1)
+*#Fullyconnectedlayers x=self.fcl(combined) x=self.dropout(self.relu(x)) x=self.fc2(x) x=self.sigmod(x) returnx
+
+## Phan III: Cau hoi trac nghiem
+
+1. Muc tieu cua bai toan Visual Question Answering la gi? 1. De tang kich c oua tam anh. 2. De tra loi cau hoi dyt tren hinh anh. 3. De tao sinh ra hinh anh duta tren cau mo ta. 4. De tao ra mo hinh 3D tur hinh anh 2D.
+2. Trong VQA, mo hinh thong nhan dau vao la gi? 1. Chi la hinh anh 2. Chi la cau hoi van ban 3. Hinh anh va cau hoi van ban 4. Am thanh
+3. Visual Question Answering la su ket hop gita 2 linh vtc nao sau day? 1. Robotics va Xu ly ngon ngut tv nhien. 2. Thi giac may tinh va hoc may. 3. Thi giac may tinh va xu ly ngon ngut tv nhien. 4. Hoc may va robotics.
+4. Trong VQA, cau tra loi cothe la gi? 1. Chi la "co" hoac "khong" 2. Chi la mot s\(\delta\) nguyen 3. Co the la mot cau tra loi van ban hoac cau tra loi "co" hoac "khong" 4. Chi la mot mtau sac
+5. Thanh phan nao sau day la mot trong nhimg thanh phan chinh cua mot mo hinh VQA? 1. Nhan dien giong noi. 2. Trich xuat dac trung tv hinh anh. 3. Dich cau hoi ngon ngut tv nhien. 4. Xu ly am thanh.
+6. Mot s thach thtc trong VQA bao gom: 1. Hieu biet ngon ngut tv nhien 2. Nhan dang doi tvong trong hinh anh 3. Khong co thach thtc nao 4. Ca a) va b)
+7. Mot he thong VQA thutong xu ly cau hoi ngon ngut tv nhien nhut the nao? 1. Bang cach chuyen doi cau hoi do thanh hinh anh. 2. Bang cach ap dung sentiment analysis cho tam anh do. 3. Dich cau hoi do qua ngon ngut khac.
+
+* Bang cach trich xuat dac trumg cau hoi do bang cac ki thuat NLP.
+* Doan code sau day dung de lam g?
+* eng = spacy.load("en_core_web_sm")
+* def get_tokens(data_iter): forsample in data_iter: question = sample['question'] yield [token.text for token in eng.tokenizer(question)]
+* De load mo hinh tieng anh Spacy.
+* Tao ra mot danh sach nhung tr tr nhung token.
+* Them ky tt dac biet vao cac cau hoi.
+* Chia van ban tieng Anh thanh nhung token.
+* Muc dich cua doan code sau la gi?
+* vocab = build_vocab_from_iterator( get_tokens(train_data), min_freq=2, specials= ['<pad>', '<soss>', '<eoss>', '<unk>'], special_first=True
+* Vocab.set_default_index(vocab['<unk>'])
+* Xay dung tr vung tr tap train, bao gom cac token dac biet va token mac dinh <unk> cho cac tti chuta biet.
+* Dich tap data huan luyen sang mot ngon ngu khac bang cach su dung cac token dac biet.
+* Sap xep cac tti trong tap huan luyen dua tren tan suat xuat hien cua cac tti.
+* Dao tao mot mo hinh moi de hieu cac mau ngon ngu trong tap data huan luyen.
+* Mo hinh hoc may nao thuong ducc su dung cho bai toan VQA?
+* Mo hinh dua tren luat co san.
+* Cac mo hinh CNN.
+* Mo hinh linear regression.
+* Mo hinh Decision Tree.
+* Thach thtc trong bai toan VQA la gi?
+* Tang do phan giai cua hinh anh
+* Sut mo h'ong cau hoi ngon ngu t tv nhien
+* Xu ly am thanh.
+* Toi uu hoa phan cmsg.
+* Output cua mo hinh VQA la:
+* Ban bao cao chi tiet.
+* Con so cu the.
+* Cau tra loi cho cau hoi vh hn hanh.
+* Mot do thi.
+* He thong VQA dutoc ting dung trong viec: 1. Choi cac video game. 2. H\(\ddot{\rm o}\) trot nguoi dung khiem thi trong viec hieu moi tru\(\ddot{\rm o}\)ng xung quanh. 3. Loc email rac. 4. X\(\ddot{\rm u}\) l\(\ddot{\rm o}\) am thanh.
+* Dong code sau day co tac dung gi? 1 image_encoder = timm.create_model(image_model, pretrained=True, num_classes=hidden_dim))
+* Tai pretrained hinh anh tv thu vien timm. 2. Chuyen d\(\ddot{\rm o}\)i d\(\ddot{\rm o}\)i lieu hinh anh mau sang hinh anh xam. 3. Tang d\(\ddot{\rm o}\) phan giai cua hinh anh. 4. Nen hinh anh de x\(\ddot{\rm u}\) l\(\ddot{\rm o}\) nhanh h\(\ddot{\rm o}\)n.
+* Output cua image_encoder tong doan code sau la gi? 1 image_encoder = timm.create_model(image_model,pretrained=True, num_classes=hidden_dim))
+* Anh dutoc bien d\(\ddot{\rm o}\)i trot tap d\(\ddot{\rm u}\) lieu. 2. Mot vector embedding v\(\ddot{\rm o}\)i so chieu la hidden_dim 3. X\(\ddot{\rm a}\)c suat t\(\dot{\rm a}\)m anh dau vao thuoc v\(\ddot{\rm t}\) tmg class. 4. Chieu cua t\(\dot{\rm a}\)m anh dau vao.
+* Dieu K\(\ddot{\rm O}\)nG lam anh h\(\ddot{\rm o}\)ng den d\(\ddot{\rm o}\) chinh x\(\ddot{\rm a}\)c cua mot mo hinh VQA? 1. T\(\ddot{\rm o}\)c d\(\ddot{\rm o}\) Internet. 2. Ch\(\ddot{\rm a}\)t lu\(\ddot{\rm o}\)ng cua tap d\(\ddot{\rm u}\) lieu dau vao. 3. Do nhieu tong cac t\(\dot{\rm a}\)am anh dau vao. 4. Do phuc tap trong cau hoi t\(\ddot{\rm o}\)ngon ngu tv nhien.
+* Cong ngh\(\ddot{\rm o}\)nga la c\(\ddot{\rm a}\)nhiet de giai thich th\(\ddot{\rm a}\)hn phan van ban trong VQA? 1. Blockchain 2. X\(\ddot{\rm u}\) l\(\ddot{\rm o}\) Ng\(\ddot{\rm u}\)r T\(\ddot{\rm o}\) Nhien (NLP) 3. Tinh Toan L\(\ddot{\rm o}\)t\(\ddot{\rm o}\)ng Tu 4. Mat m\(\ddot{\rm a}\) hoc **- \(\mathbf{H\dot{\rm e}t}\) -**

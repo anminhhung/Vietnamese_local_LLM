@@ -5,3 +5,4 @@ models/
 myEnv/
 SOURCE_ZALO_MATH/
 local_chat_history/
+*.ipynb

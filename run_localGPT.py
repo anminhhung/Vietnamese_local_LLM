@@ -1,11 +1,10 @@
 import os
 import logging
-# import click
+import click
 import torch
 import src.utils as utils
 from langdetect import detect
 
-import langchain 
 from langchain.chains import RetrievalQA
 from langchain.embeddings import HuggingFaceInstructEmbeddings
 from langchain.llms import HuggingFacePipeline
@@ -16,7 +15,6 @@ from langchain.retrievers.document_compressors import EmbeddingsFilter
 from langchain.retrievers import ContextualCompressionRetriever
 from langchain.schema.retriever import BaseRetriever, Document
 from langchain.callbacks.manager import CallbackManagerForRetrieverRun
-from langchain.cache import SQLiteCache
 from langchain.llms.vllm import VLLM
 
 from typing import List 
@@ -46,12 +44,8 @@ from src.constants import (
     MODEL_BASENAME,
     MAX_NEW_TOKENS,
     MODELS_PATH,
-    CHROMA_SETTINGS,
-    cfg
+    CHROMA_SETTINGS
 )
-
-import streamlit as st
-from accelerate import Accelerator
 
 class DummyRetriever(BaseRetriever):
     def _get_relevant_documents(
@@ -59,8 +53,8 @@ class DummyRetriever(BaseRetriever):
     ) -> List[Document]:
         return []
 
-@st.cache_resource()
-def load_model(device_type="cuda", model_id="", model_basename=None, LOGGING=logging):
+
+def load_model(device_type, model_id, model_basename=None, LOGGING=logging):
     """
     Select a model for text generation using the HuggingFace library.
     If you are running this for the first time, it will download a model for you.
@@ -80,6 +74,8 @@ def load_model(device_type="cuda", model_id="", model_basename=None, LOGGING=log
     """
     logging.info(f"Loading Model: {model_id}, on: {device_type}")
     logging.info("This action can take a few minutes!")
+    if model_basename == "":
+        model_basename = None
 
     if model_basename is not None:
         if ".gguf" in model_basename.lower():
@@ -89,20 +85,25 @@ def load_model(device_type="cuda", model_id="", model_basename=None, LOGGING=log
         elif ".ggml" in model_basename.lower():
             print("Load quantized model ggml")
             model, tokenizer = load_quantized_model_gguf_ggml(model_id, model_basename, device_type, LOGGING)
-        elif ".awq" in model_basename.lower():
-            print("Load quantized model awq")
-            model, tokenizer = load_quantized_model_awq(model_id, LOGGING)
+        elif "awq" in model_basename.lower():
+            #print("Load quantized model awq")
+            #model, tokenizer = load_quantized_model_awq(model_id, LOGGING)
+            llm = VLLM(model=model_basename, trust_remote_code=True, max_new_tokens=MAX_NEW_TOKENS, temperature=0.7, top_k=10, top_p=0.95, quantization="awq")
+            return llm
         else:
-            print("Load quantized model qptq")
-            model, tokenizer = load_quantized_model_qptq(model_id, model_basename, device_type, LOGGING)
+            print("Load gptq model")
+            llm = VLLM(model=model_basename, trust_remote_code=True, max_new_tokens=MAX_NEW_TOKENS, temperature=0.7, top_k=10, top_p=0.95, quantization="gptq", dtype='float16')
+            return llm
+            #model, tokenizer = load_quantized_model_qptq(model_id, model_basename, device_type, LOGGING)
     else:
         print("load_full_model")
         # model, tokenizer = load_full_model(model_id, model_basename, device_type, LOGGING)
         llm = VLLM(model=model_id, trust_remote_code=True, max_new_tokens=MAX_NEW_TOKENS, temperature=0.7, top_k=10, top_p=0.95)
         return llm
 
+
     # Load configuration from the model to avoid warnings
-    generation_config = GenerationConfig.from_pretrained(model_id)
+    # generation_config = GenerationConfig.from_pretrained(model_id)
     # see here for details:
     # https://huggingface.co/docs/transformers/
     # main_classes/text_generation#transformers.GenerationConfig.from_pretrained.returns
@@ -116,7 +117,7 @@ def load_model(device_type="cuda", model_id="", model_basename=None, LOGGING=log
         temperature=0.2,
         # top_p=0.95,
         repetition_penalty=1.15,
-        generation_config=generation_config,
+        # generation_config=generation_config,
     )
 
     local_llm = HuggingFacePipeline(pipeline=pipe)
@@ -125,8 +126,7 @@ def load_model(device_type="cuda", model_id="", model_basename=None, LOGGING=log
     return local_llm
 
 
-@st.cache_resource()
-def retrieval_qa_pipline(device_type="cpu", use_history=False, promptTemplate_type="llama", use_retriever=True):
+def retrieval_qa_pipline(device_type, use_history, promptTemplate_type="llama", use_retriever=True):
     """
     Initializes and returns a retrieval-based Question Answering (QA) pipeline.
 
@@ -160,7 +160,7 @@ def retrieval_qa_pipline(device_type="cpu", use_history=False, promptTemplate_ty
         client_settings=CHROMA_SETTINGS
     )
     retriever = db.as_retriever()
-    embeddings_filter = EmbeddingsFilter(embeddings=embeddings, similarity_threshold=cfg.MODEL.SIMILARITY_THRESHOLD)
+    embeddings_filter = EmbeddingsFilter(embeddings=embeddings, similarity_threshold=0.8)
     retriever = ContextualCompressionRetriever(
         base_compressor=embeddings_filter, base_retriever=retriever
     )
@@ -197,57 +197,157 @@ def retrieval_qa_pipline(device_type="cpu", use_history=False, promptTemplate_ty
 
     return qa
 
-def run_app(qa_pipeline):    
-    st.title("💬 Chatbot")
-    st.caption("🚀 I'm a Local Bot")
-    
-    # show source use to debug
-    # show_sources = st.checkbox("Show sources", value=False)
 
-    if "messages" not in st.session_state:
-        st.session_state.messages = [{"role": "assistant", "content": "Tôi có thể giúp gì được cho bạn?"}]
+# chose device typ to run on as well as to show source documents.
+@click.command()
+@click.option(
+    "--device_type",
+    default="cuda" if torch.cuda.is_available() else "cpu",
+    type=click.Choice(
+        [
+            "cpu",
+            "cuda",
+            "ipu",
+            "xpu",
+            "mkldnn",
+            "opengl",
+            "opencl",
+            "ideep",
+            "hip",
+            "ve",
+            "fpga",
+            "ort",
+            "xla",
+            "lazy",
+            "vulkan",
+            "mps",
+            "meta",
+            "hpu",
+            "mtia",
+        ],
+    ),
+    help="Device to run on. (Default is cuda)",
+)
+@click.option(
+    "--show_sources",
+    "-s",
+    is_flag=True,
+    help="Show sources along with answers (Default is False)",
+)
+@click.option(
+    "--use_history",
+    "-h",
+    is_flag=True,
+    help="Use history (Default is False)",
+)
+@click.option(
+    "--model_type",
+    default="llama",
+    type=click.Choice(
+        ["llama", "mistral", "non_llama"],
+    ),
+    help="model type, llama, mistral or non_llama",
+)
+@click.option(
+    "--save_qa",
+    is_flag=True,
+    help="whether to save Q&A pairs to a CSV file (Default is False)",
+)
 
-    for msg in st.session_state.messages:
-        st.chat_message(msg["role"]).write(msg["content"])
-        
-    # Initialize the QA system using caching
-    # translater = Translation(from_lang="en", to_lang='vi', mode='translate') 
+@click.option(
+    "--no_retriever",
+    "-nr",
+    is_flag=True,
+    help="No context"
+)
 
-    if query := st.chat_input():
-        st.session_state.messages.append({"role": "user", "content": query})
-        st.chat_message("user").write(query)
-        
-        # Add spinner
-        with st.spinner("Thinking..."):
-            res = qa_pipeline(query)
-            answer, docs = res["result"], res["source_documents"]
+@click.option(
+    "--translate_input",
+    "-ti",
+    is_flag=True,
+    help="translate question from Vi to Eng"
+)
 
-        # if translate_output:
-        #     answer = translater(answer)
-        
-        st.session_state.messages.append({"role": "assistant", "content": answer})
-        # st.chat_message("assistant").write(answer)
-        
-        response = answer
-        
-        # if show_sources:
-        #     response += "\n\n"
-        #     response += "----------------------------------SOURCE DOCUMENTS---------------------------\n"
-        #     for document in docs:
-        #         response += "\n> " + document.metadata["source"] + ":\n" + document.page_content
-        #     response += "----------------------------------SOURCE DOCUMENTS---------------------------\n"
-        
-        # save_qa
-        utils.log_to_csv(query, answer)
-            
-        st.chat_message("assistant").write(response)
+@click.option(
+    "--translate_output",
+    "-to",
+    is_flag=True,
+    help="translate answer to Vi",
+)
 
-if __name__ == "__main__":
-    logging.basicConfig(format="%(asctime)s - %(levelname)s - %(filename)s:%(lineno)s - %(message)s", level=logging.INFO)
+def main(device_type, show_sources, use_history, model_type, save_qa, no_retriever, translate_input, translate_output):
+    """
+    Implements the main information retrieval task for a localGPT.
 
+    This function sets up the QA system by loading the necessary embeddings, vectorstore, and LLM model.
+    It then enters an interactive loop where the user can input queries and receive answers. Optionally,
+    the source documents used to derive the answers can also be displayed.
+
+    Parameters:
+    - device_type (str): Specifies the type of device where the model will run, e.g., 'cpu', 'mps', 'cuda', etc.
+    - show_sources (bool): Flag to determine whether to display the source documents used for answering.
+    - use_history (bool): Flag to determine whether to use chat history or not.
+
+    Notes:
+    - Logging information includes the device type, whether source documents are displayed, and the use of history.
+    - If the models directory does not exist, it creates a new one to store models.
+    - The user can exit the interactive loop by entering "exit".
+    - The source documents are displayed if the show_sources flag is set to True.
+
+    """
+
+    logging.info(f"Running on: {device_type}")
+    logging.info(f"Display Source Documents set to: {show_sources}")
+    logging.info(f"Use history set to: {use_history}")
+
+    # check if models directory do not exist, create a new one and store models here.
     if not os.path.exists(MODELS_PATH):
         os.mkdir(MODELS_PATH)
 
-    langchain.llm_cache = SQLiteCache(database_path=cfg.STORAGE.CACHE_DB_PATH)
-    qa = retrieval_qa_pipline(cfg.MODEL.DEVICE, cfg.MODEL.USE_HISTORY, cfg.MODEL.MODEL_TYPE, cfg.MODEL.USE_RETRIEVER)
-    run_app(qa)
+    qa = retrieval_qa_pipline(device_type, use_history, promptTemplate_type=model_type, use_retriever=not no_retriever)
+    # Interactive questions and answers
+    while True:
+        query = input("\nEnter a query: ")
+        if query == "exit":
+            break
+        # Get the answer from the chain
+        if translate_input:
+            query_lang = detect(query)
+            translater = Translation(from_lang=query_lang, to_lang='en', mode='translate') 
+
+            query = translater(query)
+        res = qa(query)
+        answer, docs = res["result"], res["source_documents"]
+
+        # translate answer to VN
+        if translate_output:
+            if detect(answer) != 'vi':
+                ans_lang = detect(answer)
+                translater = Translation(from_lang=ans_lang, to_lang='vi', mode='translate') 
+                answer = translater(answer)
+
+        # Print the result
+        print("\n\n> Question:")
+        print(query)
+        print("\n> Answer:")
+        print(answer)
+        print("Num tokens: ", len(answer.split(" ")))
+
+        if show_sources:  # this is a flag that you can set to disable showing answers.
+            # # Print the relevant sources used for the answer
+            print("----------------------------------SOURCE DOCUMENTS---------------------------")
+            for document in docs:
+                print("\n> " + document.metadata["source"] + ":")
+                print(document.page_content)
+            print("----------------------------------SOURCE DOCUMENTS---------------------------")
+        
+        # Log the Q&A to CSV only if save_qa is True
+        if save_qa:
+            utils.log_to_csv(query, answer)
+
+
+if __name__ == "__main__":
+    logging.basicConfig(
+        format="%(asctime)s - %(levelname)s - %(filename)s:%(lineno)s - %(message)s", level=logging.INFO
+    )
+    main()

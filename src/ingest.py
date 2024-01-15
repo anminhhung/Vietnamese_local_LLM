@@ -8,7 +8,7 @@ from langchain.docstore.document import Document
 from langchain.embeddings import HuggingFaceInstructEmbeddings
 from langchain.text_splitter import Language, RecursiveCharacterTextSplitter
 from langchain.vectorstores import Chroma
-from langchain.document_loaders import JSONLoader
+from langchain.document_loaders import JSONLoader, MathpixPDFLoader
 import sys 
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
@@ -152,7 +152,7 @@ def main(device_type="cpu"):
     # run_localGPT.py file.
 
     # embeddings = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL_NAME)
-
+    print(texts)
     db = Chroma.from_documents(
         texts,
         embeddings,

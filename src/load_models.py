@@ -1,5 +1,5 @@
 import torch
-from auto_gptq import AutoGPTQForCausalLM
+# from auto_gptq import AutoGPTQForCausalLM
 from huggingface_hub import hf_hub_download
 from langchain.llms import LlamaCpp
 
@@ -146,7 +146,9 @@ def load_full_model(model_id, model_basename, device_type, logging):
             load_in_4bit=True,
             bnb_4bit_quant_type="nf4",
             bnb_4bit_compute_dtype=torch.float16,
-            max_memory={0: "15GB"} # Uncomment this line with you encounter CUDA out of memory errors
+            force_download=True,
+            resume_download=False
+            # max_memory={0: "15GB"} # Uncomment this line with you encounter CUDA out of memory errors
         )
         model.tie_weights()
     return model, tokenizer

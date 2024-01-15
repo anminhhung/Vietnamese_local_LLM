@@ -16,8 +16,8 @@ system_prompt = cfg.MODEL.SYSTEM_PROMPT
 
 def get_prompt_template(system_prompt=system_prompt, promptTemplate_type=None, history=False):
     if promptTemplate_type == "llama":
-        B_INST, E_INST = "[INST]", "[/INST]"
-        B_SYS, E_SYS = "<<SYS>>\n", "\n<</SYS>>\n\n"
+        B_INST, E_INST = "<|im_start|>", "<|im_end|>"
+        B_SYS, E_SYS = "system\n", "\nsystem\n\n"
         SYSTEM_PROMPT = B_SYS + system_prompt + E_SYS
         if history:
             instruction = """
@@ -42,7 +42,7 @@ def get_prompt_template(system_prompt=system_prompt, promptTemplate_type=None, h
                 + """
     
             Context: {history} \n {context}
-            User: {question}"""
+            user: {question}"""
                 + E_INST
             )
             prompt = PromptTemplate(input_variables=["history", "context", "question"], template=prompt_template)
@@ -53,7 +53,7 @@ def get_prompt_template(system_prompt=system_prompt, promptTemplate_type=None, h
                 + """
             
             Context: {context}
-            User: {question}"""
+            user: {question}"""
                 + E_INST
             )
             prompt = PromptTemplate(input_variables=["context", "question"], template=prompt_template)
