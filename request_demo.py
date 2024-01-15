@@ -1,6 +1,8 @@
 import requests
 
-response = requests.post("http://127.0.0.1:8000/", params={"text": "Hello world!"})
-french_text = response.json()
+english_text = "MLE là gì?"
 
-print(french_text)
+response = requests.post("http://127.0.0.1:8000/", json=english_text)
+# french_text = response.text
+
+print(response)

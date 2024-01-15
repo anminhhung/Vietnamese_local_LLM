@@ -4,7 +4,7 @@ import ray
 import logging
 from typing import List 
 from ray import serve
-from fastapi import FastAPI
+# from fastapi import FastAPI
 
 import langchain 
 from langchain.chains import RetrievalQA
@@ -43,7 +43,7 @@ from src.constants import (
     cfg
 )
 
-app = FastAPI()
+# app = FastAPI()
 callback_manager = CallbackManager([StreamingStdOutCallbackHandler()])
 
 class DummyRetriever(BaseRetriever):
@@ -52,19 +52,19 @@ class DummyRetriever(BaseRetriever):
         ) -> List[Document]:
             return []
         
-@serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": 0.0, "num_gpus": 0})
-@serve.ingress(app)
+@serve.deployment(num_replicas=1)
+# @serve.ingress(app)
 class LocalBot:
     def __init__(self):
-        os.environ["OMP_NUM_THREADS"] = "2"
+        os.environ["OMP_NUM_THREADS"] = "1"
         self.qa_pipeline = self.setup_retrieval_qa_pipeline()
 
     def setup_retrieval_qa_pipeline(self):
         langchain.llm_cache = SQLiteCache(database_path=cfg.STORAGE.CACHE_DB_PATH)
         return self.create_retrieval_qa_pipeline(cfg.MODEL.DEVICE, cfg.MODEL.USE_HISTORY, cfg.MODEL.MODEL_TYPE, cfg.MODEL.USE_RETRIEVER)
     
-    @app.post("/call-bot")
-    async def answer_query(self, query: str) -> str:
+    # @app.post("/call-bot")
+    async def __call__(self, query: str) -> str:
         res = await self.qa_pipeline(query)
         answer, docs = res["result"], res["source_documents"]
 
@@ -203,10 +203,9 @@ class LocalBot:
 
         return qa
 
-if __name__ == "__main__":
-    logging.basicConfig(format="%(asctime)s - %(levelname)s - %(filename)s:%(lineno)s - %(message)s", level=logging.INFO)
+# if __name__ == "__main__":
+logging.basicConfig(format="%(asctime)s - %(levelname)s - %(filename)s:%(lineno)s - %(message)s", level=logging.INFO)
+if not os.path.exists(MODELS_PATH):
+    os.makedirs(MODELS_PATH, exist_ok=True)
 
-    if not os.path.exists(MODELS_PATH):
-        os.mkdir(MODELS_PATH)
-
-    serve.run(LocalBot.bind())
+app_bot = LocalBot.bind()
