@@ -2,6 +2,10 @@
 langchain==0.0.267
 chromadb==0.4.6
 pdfminer.six==20221105
+<<<<<<< HEAD
+=======
+llama-cpp-python==0.2.27
+>>>>>>> 3c92f5c520379f77b73c67c92c2ae5ff0863e82c
 InstructorEmbedding
 sentence-transformers
 faiss-cpu
@@ -21,7 +25,11 @@ urllib3==1.26.6
 accelerate
 bitsandbytes ; sys_platform != 'win32'
 bitsandbytes-windows ; sys_platform == 'win32'
+<<<<<<< HEAD
 click
+=======
+# click
+>>>>>>> 3c92f5c520379f77b73c67c92c2ae5ff0863e82c
 flask
 requests
 
@@ -36,5 +44,10 @@ openpyxl
 googletrans
 translate
 
+<<<<<<< HEAD
 vllm
 
+=======
+easydict==1.9.0
+pyyaml==5.3.1
+>>>>>>> 3c92f5c520379f77b73c67c92c2ae5ff0863e82c
