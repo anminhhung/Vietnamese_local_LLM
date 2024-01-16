@@ -2,10 +2,6 @@
 langchain==0.0.267
 chromadb==0.4.6
 pdfminer.six==20221105
-<<<<<<< HEAD
-=======
-llama-cpp-python==0.2.27
->>>>>>> 3c92f5c520379f77b73c67c92c2ae5ff0863e82c
 InstructorEmbedding
 sentence-transformers
 faiss-cpu
@@ -26,7 +22,6 @@ accelerate
 bitsandbytes ; sys_platform != 'win32'
 bitsandbytes-windows ; sys_platform == 'win32'
 click
-# click
 flask
 requests
 
