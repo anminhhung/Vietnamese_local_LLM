@@ -4,11 +4,13 @@ from huggingface_hub import hf_hub_download
 from langchain.llms import LlamaCpp
 
 from transformers import (
-    AutoModelForCausalLM,
+    #AutoModelForCausalLM,
     AutoTokenizer,
     LlamaForCausalLM,
     LlamaTokenizer,
 )
+from intel_extension_for_transformers.transformers import AutoModelForCausalLM
+
 from src.constants import CONTEXT_WINDOW_SIZE, MAX_NEW_TOKENS, N_GPU_LAYERS, N_BATCH, MODELS_PATH, cfg
 
 
@@ -128,7 +130,7 @@ def load_full_model(model_id, model_basename, device_type, logging):
     - Additional settings are provided for NVIDIA GPUs, such as loading in 4-bit and setting the compute dtype.
     """
 
-    if device_type.lower() in ["mps", "cpu"]:
+    if device_type.lower() in ["mps"]:
         logging.info("Using LlamaTokenizer")
         tokenizer = LlamaTokenizer.from_pretrained(model_id, cache_dir="./models/")
         model = LlamaForCausalLM.from_pretrained(model_id, cache_dir="./models/")
@@ -138,14 +140,14 @@ def load_full_model(model_id, model_basename, device_type, logging):
         logging.info("Tokenizer loaded")
         model = AutoModelForCausalLM.from_pretrained(
             model_id,
-            device_map="auto",
-            torch_dtype=torch.float16,
+            # device_map="auto",
+            # torch_dtype=torch.float16,
             low_cpu_mem_usage=True,
             cache_dir=MODELS_PATH,
             trust_remote_code=True, # set these if you are using NVIDIA GPU
             load_in_4bit=True,
-            bnb_4bit_quant_type="nf4",
-            bnb_4bit_compute_dtype=torch.float16,
+            #bnb_4bit_quant_type="nf4",
+            #bnb_4bit_compute_dtype=torch.float16,
             force_download=True,
             resume_download=False
             # max_memory={0: "15GB"} # Uncomment this line with you encounter CUDA out of memory errors
