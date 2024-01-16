@@ -2,7 +2,7 @@ MODEL:
   CONTEXT_WINDOW_SIZE: 4096
   N_GPU_LAYERS: 40  # Llama-2-70B has 83 layers
   N_BATCH: 512
-  DEVICE: 'cuda' # ["cpu", "cuda", "ipu", "xpu", "mkldnn", "opengl", "opencl", "ideep", "hip", 
+  DEVICE: 'cpu' # ["cpu", "cuda", "ipu", "xpu", "mkldnn", "opengl", "opencl", "ideep", "hip", 
                 #  "ve", "fpga", "ort", "xla", "lazy", "vulkan", "mps", "meta", "hpu", "mtia"]
 
   SIMILARITY_THRESHOLD: 0.8
@@ -17,10 +17,10 @@ MODEL:
 
   MODEL_TYPE: "llama" # ["llama", "mistral", "non_llama"],
   EMBEDDING_MODEL_NAME: "intfloat/multilingual-e5-base"
-  # MODEL_ID: "vilm/vinallama-7b-chat-GGUF"
-  # MODEL_BASENAME: "vinallama-7b-chat_q5_0.gguf"
-  MODEL_ID: "mistralai/Mistral-7B-Instruct-v0.2"
-  MODEL_BASENAME: ""
+  MODEL_ID: "vilm/vinallama-7b-chat-GGUF"
+  MODEL_BASENAME: "vinallama-7b-chat_q5_0.gguf"
+  # MODEL_ID: "mistralai/Mistral-7B-Instruct-v0.2"
+  # MODEL_BASENAME: ""
 
 
   # MODEL_ID: "TheBloke/TinyLlama-1.1B-Chat-v0.3-GGUF"

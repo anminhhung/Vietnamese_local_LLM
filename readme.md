@@ -14,5 +14,8 @@ python3 src/ingest.py
 ## Run app 
 
 ```
+# backend 
+serve run localbot_app:app_bot
+# UI
 streamlit run streamlit_chatbot.py
 ```
