@@ -17,11 +17,16 @@ MODEL:
 
   MODEL_TYPE: "llama" # ["llama", "mistral", "non_llama"],
   EMBEDDING_MODEL_NAME: "intfloat/multilingual-e5-base"
-  MODEL_ID: "vilm/vinallama-7b-chat-GGUF"
-  MODEL_BASENAME: "vinallama-7b-chat_q5_0.gguf"
+  # MODEL_ID: "vilm/vinallama-7b-chat-GGUF"
+  # MODEL_BASENAME: "vinallama-7b-chat_q5_0.gguf"
   # MODEL_ID: "mistralai/Mistral-7B-Instruct-v0.2"
   # MODEL_BASENAME: ""
 
+  MODEL_ID: "qnguyen3/quan-1.8b-chat"
+  MODEL_BASENAME: ""
+
+  # MODEL_ID: "Viet-Mistral/Vistral-7B-Chat"
+  # MODEL_BASENAME: ""
 
   # MODEL_ID: "TheBloke/TinyLlama-1.1B-Chat-v0.3-GGUF"
   # MODEL_BASENAME: "tinyllama-1.1b-chat-v0.3.Q6_K.gguf"
