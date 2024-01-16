@@ -1,5 +1,6 @@
 import os
 import logging
+<<<<<<< HEAD
 # import click
 import torch
 import src.utils as utils
@@ -129,8 +130,21 @@ def load_model(device_type, model_id, model_basename=None, LOGGING=logging):
 @st.cache_resource()
 def retrieval_qa_pipline(device_type="cpu", use_history=False, promptTemplate_type="llama", use_retriever=True):
     return retrieval_qa_pipline(device_type, use_history=use_history, promptTemplate_type=promptTemplate_type, use_retriever=use_retriever) 
+=======
+import requests
+import ray
+import streamlit as st
+import src.utils as utils
 
-def run_app(qa_pipeline):    
+@ray.remote
+def send_query(text):
+    resp = requests.get("http://localhost:8000/?query={}".format(text))
+
+    return resp.text
+
+>>>>>>> origin/searchpaper
+
+def run_app():    
     st.title("💬 Chatbot")
     st.caption("🚀 I'm a Local Bot")
     
@@ -152,8 +166,8 @@ def run_app(qa_pipeline):
         
         # Add spinner
         with st.spinner("Thinking..."):
-            res = qa_pipeline(query)
-            answer, docs = res["result"], res["source_documents"]
+            res = ray.get(send_query.remote(query))
+            answer = res
 
         # if translate_output:
         #     answer = translater(answer)
@@ -161,7 +175,7 @@ def run_app(qa_pipeline):
         st.session_state.messages.append({"role": "assistant", "content": answer})
         # st.chat_message("assistant").write(answer)
         
-        response = answer
+        # response = answer
         
         # if show_sources:
         #     response += "\n\n"
@@ -173,14 +187,7 @@ def run_app(qa_pipeline):
         # save_qa
         utils.log_to_csv(query, answer)
             
-        st.chat_message("assistant").write(response)
+        st.chat_message("assistant").write(answer)
 
 if __name__ == "__main__":
-    logging.basicConfig(format="%(asctime)s - %(levelname)s - %(filename)s:%(lineno)s - %(message)s", level=logging.INFO)
-
-    if not os.path.exists(MODELS_PATH):
-        os.mkdir(MODELS_PATH)
-
-    langchain.llm_cache = SQLiteCache(database_path=cfg.STORAGE.CACHE_DB_PATH)
-    qa = retrieval_qa_pipline(cfg.MODEL.DEVICE, cfg.MODEL.USE_HISTORY, cfg.MODEL.MODEL_TYPE, cfg.MODEL.USE_RETRIEVER)
-    run_app(qa)
+    run_app()
