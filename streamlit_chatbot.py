@@ -35,7 +35,7 @@ def run_app():
         # Add spinner
         with st.spinner("Thinking..."):
             res = ray.get(send_query.remote(query))
-            answer, docs = res["result"], res["source_documents"]
+            answer = res
 
         # if translate_output:
         #     answer = translater(answer)
@@ -43,7 +43,7 @@ def run_app():
         st.session_state.messages.append({"role": "assistant", "content": answer})
         # st.chat_message("assistant").write(answer)
         
-        response = answer
+        # response = answer
         
         # if show_sources:
         #     response += "\n\n"
@@ -55,7 +55,7 @@ def run_app():
         # save_qa
         utils.log_to_csv(query, answer)
             
-        st.chat_message("assistant").write(response)
+        st.chat_message("assistant").write(answer)
 
 if __name__ == "__main__":
     run_app()

@@ -56,7 +56,7 @@ class DummyRetriever(BaseRetriever):
             return []
         
 @serve.deployment(
-    ray_actor_options={"num_cpus": 1},
+    ray_actor_options={"num_cpus": 0.2, "num_gpus": 0.8},
     max_concurrent_queries=5,
     autoscaling_config={
         "target_num_ongoing_requests_per_replica": 1,
@@ -77,9 +77,9 @@ class LocalBot:
 
     @serve.batch(max_batch_size=8, batch_wait_timeout_s=0.1)    
     async def generate_response(self, query_list: List[str]) -> List[str]:
-        res = self.qa_pipeline(query_list)
+        res = self.qa_pipeline(inputs=query_list)
         answer_list = res["result"]
-        return answer_list
+        return [answer_list]
         
     # @app.post("/call-bot")
     async def __call__(self, request) -> str:
