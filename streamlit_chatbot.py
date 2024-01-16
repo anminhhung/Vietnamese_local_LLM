@@ -60,7 +60,8 @@ class DummyRetriever(BaseRetriever):
         return []
 
 @st.cache_resource()
-def load_model(device_type="cuda", model_id="", model_basename=None, LOGGING=logging):
+
+def load_model(device_type, model_id, model_basename=None, LOGGING=logging):
     """
     Select a model for text generation using the HuggingFace library.
     If you are running this for the first time, it will download a model for you.
@@ -81,7 +82,7 @@ def load_model(device_type="cuda", model_id="", model_basename=None, LOGGING=log
     logging.info(f"Loading Model: {model_id}, on: {device_type}")
     logging.info("This action can take a few minutes!")
 
-    if model_basename is not None:
+    if model_basename is not None or model_basename != "":
         if ".gguf" in model_basename.lower():
             print("Load quantized model gguf")
             llm = load_quantized_model_gguf_ggml(model_id, model_basename, device_type, LOGGING)
@@ -89,40 +90,45 @@ def load_model(device_type="cuda", model_id="", model_basename=None, LOGGING=log
         elif ".ggml" in model_basename.lower():
             print("Load quantized model ggml")
             model, tokenizer = load_quantized_model_gguf_ggml(model_id, model_basename, device_type, LOGGING)
-        elif ".awq" in model_basename.lower():
-            print("Load quantized model awq")
-            model, tokenizer = load_quantized_model_awq(model_id, LOGGING)
+            # Load configuration from the model to avoid warnings
+            # generation_config = GenerationConfig.from_pretrained(model_id)
+            # see here for details:
+            # https://huggingface.co/docs/transformers/
+            # main_classes/text_generation#transformers.GenerationConfig.from_pretrained.returns
+
+            # Create a pipeline for text generation
+            pipe = pipeline(
+                "text-generation",
+                model=model,
+                tokenizer=tokenizer,
+                max_length=MAX_NEW_TOKENS,
+                temperature=0.2,
+                # top_p=0.95,
+                repetition_penalty=1.15,
+                # generation_config=generation_config,
+            )
+
+            local_llm = HuggingFacePipeline(pipeline=pipe)
+            logging.info("Local LLM Loaded")
+
+            return local_llm
+        elif "awq" in model_basename.lower():
+            #print("Load quantized model awq")
+            #model, tokenizer = load_quantized_model_awq(model_id, LOGGING)
+            llm = VLLM(model=model_basename, trust_remote_code=True, max_new_tokens=MAX_NEW_TOKENS, temperature=0.7, top_k=10, top_p=0.95, quantization="awq")
+            return llm
         else:
-            print("Load quantized model qptq")
-            model, tokenizer = load_quantized_model_qptq(model_id, model_basename, device_type, LOGGING)
+            print("Load gptq model")
+            llm = VLLM(model=model_basename, trust_remote_code=True, max_new_tokens=MAX_NEW_TOKENS, temperature=0.7, top_k=10, top_p=0.95, quantization="gptq", dtype='float16')
+            return llm
+            #model, tokenizer = load_quantized_model_qptq(model_id, model_basename, device_type, LOGGING)
     else:
         print("load_full_model")
-        # model, tokenizer = load_full_model(model_id, model_basename, device_type, LOGGING)
-        llm = VLLM(model=model_id, trust_remote_code=True, max_new_tokens=MAX_NEW_TOKENS, temperature=0.7, top_k=10, top_p=0.95)
-        return llm
-
-    # Load configuration from the model to avoid warnings
-    generation_config = GenerationConfig.from_pretrained(model_id)
-    # see here for details:
-    # https://huggingface.co/docs/transformers/
-    # main_classes/text_generation#transformers.GenerationConfig.from_pretrained.returns
-
-    # Create a pipeline for text generation
-    pipe = pipeline(
-        "text-generation",
-        model=model,
-        tokenizer=tokenizer,
-        max_length=MAX_NEW_TOKENS,
-        temperature=0.2,
-        # top_p=0.95,
-        repetition_penalty=1.15,
-        generation_config=generation_config,
-    )
-
-    local_llm = HuggingFacePipeline(pipeline=pipe)
-    logging.info("Local LLM Loaded")
-
-    return local_llm
+        if device_type == "cpu":
+            model, tokenizer = load_full_model(model_id, model_basename, device_type, LOGGING)
+        else:
+            llm = VLLM(model=model_id, trust_remote_code=True, max_new_tokens=MAX_NEW_TOKENS, temperature=0.7, top_k=10, top_p=0.95, tensor_parallel_size=2)
+            return llm
 
 
 @st.cache_resource()
