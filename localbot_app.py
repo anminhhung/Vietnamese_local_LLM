@@ -55,7 +55,16 @@ class DummyRetriever(BaseRetriever):
         ) -> List[Document]:
             return []
         
-@serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": 0.2, "num_gpus": 0.8})
+@serve.deployment(
+    ray_actor_options={"num_cpus": 1},
+    max_concurrent_queries=5,
+    autoscaling_config={
+        "target_num_ongoing_requests_per_replica": 1,
+        "min_replicas": 0,
+        "initial_replicas": 0,
+        "max_replicas": 200,
+    },
+)
 # @serve.ingress(app)
 class LocalBot:
     def __init__(self):
