@@ -25,11 +25,8 @@ urllib3==1.26.6
 accelerate
 bitsandbytes ; sys_platform != 'win32'
 bitsandbytes-windows ; sys_platform == 'win32'
-<<<<<<< HEAD
 click
-=======
 # click
->>>>>>> 3c92f5c520379f77b73c67c92c2ae5ff0863e82c
 flask
 requests
 
@@ -44,10 +41,7 @@ openpyxl
 googletrans
 translate
 
-<<<<<<< HEAD
 vllm
 
-=======
 easydict==1.9.0
 pyyaml==5.3.1
->>>>>>> 3c92f5c520379f77b73c67c92c2ae5ff0863e82c
