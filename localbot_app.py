@@ -22,6 +22,9 @@ from langchain.cache import SQLiteCache
 from src.prompt_template_utils import get_prompt_template
 from langchain.vectorstores import Chroma
 from transformers import GenerationConfig, pipeline
+from langchain.llms.vllm import VLLM
+from typing import List, AsyncGenerator, Union
+import asyncio
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
@@ -52,7 +55,7 @@ class DummyRetriever(BaseRetriever):
         ) -> List[Document]:
             return []
         
-@serve.deployment(num_replicas=1)
+@serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": 0.2, "num_gpus": 0.8})
 # @serve.ingress(app)
 class LocalBot:
     def __init__(self):
@@ -62,14 +65,16 @@ class LocalBot:
     def setup_retrieval_qa_pipeline(self):
         langchain.llm_cache = SQLiteCache(database_path=cfg.STORAGE.CACHE_DB_PATH)
         return self.create_retrieval_qa_pipeline(cfg.MODEL.DEVICE, cfg.MODEL.USE_HISTORY, cfg.MODEL.MODEL_TYPE, cfg.MODEL.USE_RETRIEVER)
-    
+
+    @serve.batch(max_batch_size=8, batch_wait_timeout_s=0.1)    
+    async def generate_response(self, query_list: List[str]) -> List[str]:
+        res = self.qa_pipeline(query_list)
+        answer_list = res["result"]
+        return answer_list
+        
     # @app.post("/call-bot")
     async def __call__(self, request) -> str:
-        query = request.query_params["query"]
-        res = self.qa_pipeline(query)
-        answer, docs = res["result"], res["source_documents"]
-
-        return answer
+        return await self.generate_response(request.query_params["query"])
 
     def load_model(self, device_type="cpu", model_id="", model_basename=None, LOGGING=logging):
         """
@@ -92,6 +97,8 @@ class LocalBot:
         logging.info(f"Loading Model: {model_id}, on: {device_type}")
         logging.info("This action can take a few minutes!")
 
+        if model_basename == "":
+            model_basename = None
         if model_basename is not None:
             if ".gguf" in model_basename.lower():
                 print("Load quantized model gguf")
@@ -100,40 +107,48 @@ class LocalBot:
             elif ".ggml" in model_basename.lower():
                 print("Load quantized model ggml")
                 model, tokenizer = load_quantized_model_gguf_ggml(model_id, model_basename, device_type, LOGGING)
-            elif ".awq" in model_basename.lower():
-                print("Load quantized model awq")
-                model, tokenizer = load_quantized_model_awq(model_id, LOGGING)
+                # Load configuration from the model to avoid warnings
+                # generation_config = GenerationConfig.from_pretrained(model_id)
+                # see here for details:
+                # https://huggingface.co/docs/transformers/
+                # main_classes/text_generation#transformers.GenerationConfig.from_pretrained.returns
+
+                # Create a pipeline for text generation
+                pipe = pipeline(
+                    "text-generation",
+                    model=model,
+                    tokenizer=tokenizer,
+                    max_length=MAX_NEW_TOKENS,
+                    temperature=0.2,
+                    # top_p=0.95,
+                    repetition_penalty=1.15,
+                    # generation_config=generation_config,
+                )
+
+                local_llm = HuggingFacePipeline(pipeline=pipe)
+                logging.info("Local LLM Loaded")
+
+                return local_llm
+            elif "awq" in model_basename.lower():
+                #print("Load quantized model awq")
+                #model, tokenizer = load_quantized_model_awq(model_id, LOGGING)
+                llm = VLLM(model=model_basename, trust_remote_code=True, max_new_tokens=MAX_NEW_TOKENS, temperature=0.7, top_k=10, top_p=0.95, quantization="awq")
+                return llm
             else:
-                print("Load quantized model qptq")
-                model, tokenizer = load_quantized_model_qptq(model_id, model_basename, device_type, LOGGING)
+                print("Load gptq model")
+                llm = VLLM(model=model_basename, trust_remote_code=True, max_new_tokens=MAX_NEW_TOKENS, temperature=0.7, top_k=10, top_p=0.95, quantization="gptq", dtype='float16')
+                return llm
+                #model, tokenizer = load_quantized_model_qptq(model_id, model_basename, device_type, LOGGING)
         else:
             print("load_full_model")
-            model, tokenizer = load_full_model(model_id, model_basename, device_type, LOGGING)
+            logging.info(f"Using mode: {model_id}")
+            if device_type == "cpu":
+                model, tokenizer = load_full_model(model_id, model_basename, device_type, LOGGING)
+            else:
+                llm = VLLM(model=model_id, trust_remote_code=True, max_new_tokens=MAX_NEW_TOKENS, temperature=0.7, top_k=10, top_p=0.95, tensor_parallel_size=1)
+                return llm
 
-        # Load configuration from the model to avoid warnings
-        generation_config = GenerationConfig.from_pretrained(model_id)
-        # see here for details:
-        # https://huggingface.co/docs/transformers/
-        # main_classes/text_generation#transformers.GenerationConfig.from_pretrained.returns
-
-        # Create a pipeline for text generation
-        pipe = pipeline(
-            "text-generation",
-            model=model,
-            tokenizer=tokenizer,
-            max_length=MAX_NEW_TOKENS,
-            temperature=0.2,
-            # top_p=0.95,
-            repetition_penalty=1.15,
-            generation_config=generation_config,
-        )
-
-        local_llm = HuggingFacePipeline(pipeline=pipe)
-        logging.info("Local LLM Loaded")
-
-        return local_llm
-
-    def create_retrieval_qa_pipeline(self, device_type="cpu", use_history=False, promptTemplate_type="llama", use_retriever=True):
+    def create_retrieval_qa_pipeline(self, device_type="cuda", use_history=False, promptTemplate_type="llama", use_retriever=True):
         """
         Initializes and returns a retrieval-based Question Answering (QA) pipeline.
 
