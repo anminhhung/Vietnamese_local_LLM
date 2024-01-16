@@ -64,8 +64,9 @@ class LocalBot:
         return self.create_retrieval_qa_pipeline(cfg.MODEL.DEVICE, cfg.MODEL.USE_HISTORY, cfg.MODEL.MODEL_TYPE, cfg.MODEL.USE_RETRIEVER)
     
     # @app.post("/call-bot")
-    async def __call__(self, query: str) -> str:
-        res = await self.qa_pipeline(query)
+    async def __call__(self, request) -> str:
+        query = request.query_params["query"]
+        res = self.qa_pipeline(query)
         answer, docs = res["result"], res["source_documents"]
 
         return answer
