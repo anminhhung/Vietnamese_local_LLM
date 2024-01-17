@@ -4,6 +4,7 @@ import ray
 import logging
 from typing import List 
 from ray import serve
+import asyncio
 # from fastapi import FastAPI
 
 import langchain 
@@ -22,10 +23,14 @@ from langchain.vectorstores import Chroma
 from transformers import GenerationConfig, pipeline
 from langchain.llms.vllm import VLLM
 
+from fastapi import FastAPI
+from starlette.responses import StreamingResponse
+
+
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 from src.chains.retrievers import DummyRetriever
-from src.chains.pipeline import BatchRetrievalQA, BatchStuffDocumentsChain
+from src.chains.pipeline import BatchRetrievalQA
 from src.load_models import (
     load_quantized_model_awq,
     load_quantized_model_gguf_ggml,
@@ -43,7 +48,10 @@ from src.constants import (
     cfg
 )
 
+
+
 # app = FastAPI()
+
 callback_manager = CallbackManager([StreamingStdOutCallbackHandler()])
 
 
@@ -59,7 +67,7 @@ callback_manager = CallbackManager([StreamingStdOutCallbackHandler()])
         "max_replicas": cfg.RAY_CONFIG.MAX_REPLICAS,
     },
 )
-# @serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": 0.2, "num_gpus": 0.8})
+# @serve.ingress(app)
 class LocalBot:
     def __init__(self):
         os.environ["OMP_NUM_THREADS"] = "{}".format(cfg.RAY_CONFIG.OMP_NUM_THREADS)
@@ -73,7 +81,8 @@ class LocalBot:
                  batch_wait_timeout_s=cfg.RAY_CONFIG.BATCH_TIMEOUT
     )    
     async def generate_response(self, query_list: List[str]) -> List[str]:
-        res = self.qa_pipeline(inputs=query_list)
+        res = self.qa_pipeline.stream(inputs=query_list)
+        print(res)
         return [r['text'] for r in res['result']]
         
     # @app.post("/call-bot")
@@ -202,7 +211,7 @@ class LocalBot:
         llm = self.load_model(device_type, model_id=MODEL_ID, model_basename=MODEL_BASENAME, LOGGING=logging)
 
         if use_history:
-            qa = BatchRetrievalQA.from_chain_type(
+            qa = RetrievalQA.from_chain_type(
                 llm=llm,
                 chain_type="batch_stuff",  # try other chains types as well. refine, map_reduce, map_rerank
                 retriever=retriever,
@@ -211,7 +220,7 @@ class LocalBot:
                 chain_type_kwargs={"prompt": prompt, "memory": memory},
             )
         else:
-            qa = BatchRetrievalQA.from_chain_type(
+            qa = RetrievalQA.from_chain_type(
                 llm=llm,
                 chain_type="batch_stuff",  # try other chains types as well. refine, map_reduce, map_rerank
                 retriever=retriever,

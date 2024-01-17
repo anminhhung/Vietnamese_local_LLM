@@ -30,11 +30,11 @@ MODEL:
   # MODEL_ID: "qnguyen3/quan-1.8b-chat"
   # MODEL_BASENAME: ""
 
-  # MODEL_ID: "Viet-Mistral/Vistral-7B-Chat"
-  # MODEL_BASENAME: ""
+  MODEL_ID: "Viet-Mistral/Vistral-7B-Chat"
+  MODEL_BASENAME: ""
 
-  MODEL_ID: "TheBloke/TinyLlama-1.1B-Chat-v0.3-GGUF"
-  MODEL_BASENAME: "tinyllama-1.1b-chat-v0.3.Q6_K.gguf"
+  #MODEL_ID: "TheBloke/TinyLlama-1.1B-Chat-v0.3-GGUF"
+  #MODEL_BASENAME: "tinyllama-1.1b-chat-v0.3.Q6_K.gguf"
 
   # MODEL_ID: "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
   # MODEL_BASENAME: ""

@@ -152,7 +152,6 @@ def main(device_type="cpu"):
     # run_localGPT.py file.
 
     # embeddings = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL_NAME)
-    print(texts)
     db = Chroma.from_documents(
         texts,
         embeddings,
