@@ -47,27 +47,31 @@ from src.constants import (
 callback_manager = CallbackManager([StreamingStdOutCallbackHandler()])
 
 
-# @serve.deployment(
-#     ray_actor_options={"num_cpus": 0.2, "num_gpus": 0.8},
-#     max_concurrent_queries=5,
-#     autoscaling_config={
-#         "target_num_ongoing_requests_per_replica": 1,
-#         "min_replicas": 0,
-#         "initial_replicas": 0,
-#         "max_replicas": 200,
-#     },
-# )
-@serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": 0.2, "num_gpus": 0.8})
+@serve.deployment(
+    ray_actor_options={"num_cpus": cfg.RAY_CONFIG.NUM_CPUS, 
+                       "num_gpus": cfg.RAY_CONFIG.NUM_GPUS
+    },
+    max_concurrent_queries=cfg.RAY_CONFIG.MAX_CONCURRENT_QUERIES,
+    autoscaling_config={
+        "target_num_ongoing_requests_per_replica": cfg.RAY_CONFIG.NUM_REQUESTS_PER_REPLICA,
+        "min_replicas": cfg.RAY_CONFIG.MIN_REPLICAS,
+        "initial_replicas": cfg.RAY_CONFIG.INIT_REPLICAS,
+        "max_replicas": cfg.RAY_CONFIG.MAX_REPLICAS,
+    },
+)
+# @serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": 0.2, "num_gpus": 0.8})
 class LocalBot:
     def __init__(self):
-        os.environ["OMP_NUM_THREADS"] = "1"
+        os.environ["OMP_NUM_THREADS"] = "{}".format(cfg.RAY_CONFIG.OMP_NUM_THREADS)
         self.qa_pipeline = self.setup_retrieval_qa_pipeline()
 
     def setup_retrieval_qa_pipeline(self):
         langchain.llm_cache = SQLiteCache(database_path=cfg.STORAGE.CACHE_DB_PATH)
         return self.create_retrieval_qa_pipeline(cfg.MODEL.DEVICE, cfg.MODEL.USE_HISTORY, cfg.MODEL.MODEL_TYPE, cfg.MODEL.USE_RETRIEVER)
 
-    @serve.batch(max_batch_size=8, batch_wait_timeout_s=0.1)    
+    @serve.batch(max_batch_size=cfg.RAY_CONFIG.MAX_BATCH_SIZE, 
+                 batch_wait_timeout_s=cfg.RAY_CONFIG.BATCH_TIMEOUT
+    )    
     async def generate_response(self, query_list: List[str]) -> List[str]:
         res = self.qa_pipeline(inputs=query_list)
         return [r['text'] for r in res['result']]
