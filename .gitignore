@@ -6,3 +6,6 @@ myEnv/
 SOURCE_ZALO_MATH/
 local_chat_history/
 *.ipynb
+.vscode
+*.pdf 
+*.mmd 

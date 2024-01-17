@@ -2,7 +2,7 @@ MODEL:
   CONTEXT_WINDOW_SIZE: 4096
   N_GPU_LAYERS: 40  # Llama-2-70B has 83 layers
   N_BATCH: 512
-  DEVICE: 'cuda' # ["cpu", "cuda", "ipu", "xpu", "mkldnn", "opengl", "opencl", "ideep", "hip", 
+  DEVICE: 'cpu' # ["cpu", "cuda", "ipu", "xpu", "mkldnn", "opengl", "opencl", "ideep", "hip", 
                 #  "ve", "fpga", "ort", "xla", "lazy", "vulkan", "mps", "meta", "hpu", "mtia"]
 
   SIMILARITY_THRESHOLD: 0.8
@@ -24,11 +24,11 @@ MODEL:
   # MODEL_ID: "mistralai/Mistral-7B-Instruct-v0.2"
   # MODEL_BASENAME: ""
   
-  MODEL_ID: "TheBloke/Mistral-7B-Instruct-v0.2-AWQ"
-  MODEL_BASENAME: ""
-
-  # MODEL_ID: "qnguyen3/quan-1.8b-chat"
+  # MODEL_ID: "TheBloke/Mistral-7B-Instruct-v0.2-AWQ"
   # MODEL_BASENAME: ""
+
+  MODEL_ID: "qnguyen3/quan-1.8b-chat"
+  MODEL_BASENAME: ""
 
   # MODEL_ID: "Viet-Mistral/Vistral-7B-Chat"
   # MODEL_BASENAME: ""
