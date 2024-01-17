@@ -15,26 +15,23 @@ from langchain.callbacks.manager import CallbackManager
 from src.nlp_preprocessing import Translation
 from langchain.retrievers.document_compressors import EmbeddingsFilter
 from langchain.retrievers import ContextualCompressionRetriever
-from langchain.schema.retriever import BaseRetriever, Document
-from langchain.callbacks.manager import CallbackManagerForRetrieverRun
 from langchain.cache import SQLiteCache
 
 from src.prompt_template_utils import get_prompt_template
 from langchain.vectorstores import Chroma
 from transformers import GenerationConfig, pipeline
 from langchain.llms.vllm import VLLM
-from typing import List, AsyncGenerator, Union
-import asyncio
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
+from src.chains.retrievers import DummyRetriever
+from src.chains.pipeline import BatchRetrievalQA, BatchStuffDocumentsChain
 from src.load_models import (
     load_quantized_model_awq,
     load_quantized_model_gguf_ggml,
     load_quantized_model_qptq,
     load_full_model,
 )
-
 from src.constants import (
     EMBEDDING_MODEL_NAME,
     PERSIST_DIRECTORY,
@@ -49,23 +46,18 @@ from src.constants import (
 # app = FastAPI()
 callback_manager = CallbackManager([StreamingStdOutCallbackHandler()])
 
-class DummyRetriever(BaseRetriever):
-        def _get_relevant_documents(
-            self, query: str, *, run_manager: CallbackManagerForRetrieverRun
-        ) -> List[Document]:
-            return []
-        
-@serve.deployment(
-    ray_actor_options={"num_cpus": 0.2, "num_gpus": 0.8},
-    max_concurrent_queries=5,
-    autoscaling_config={
-        "target_num_ongoing_requests_per_replica": 1,
-        "min_replicas": 0,
-        "initial_replicas": 0,
-        "max_replicas": 200,
-    },
-)
-# @serve.ingress(app)
+
+# @serve.deployment(
+#     ray_actor_options={"num_cpus": 0.2, "num_gpus": 0.8},
+#     max_concurrent_queries=5,
+#     autoscaling_config={
+#         "target_num_ongoing_requests_per_replica": 1,
+#         "min_replicas": 0,
+#         "initial_replicas": 0,
+#         "max_replicas": 200,
+#     },
+# )
+@serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": 0.2, "num_gpus": 0.8})
 class LocalBot:
     def __init__(self):
         os.environ["OMP_NUM_THREADS"] = "1"
@@ -78,12 +70,12 @@ class LocalBot:
     @serve.batch(max_batch_size=8, batch_wait_timeout_s=0.1)    
     async def generate_response(self, query_list: List[str]) -> List[str]:
         res = self.qa_pipeline(inputs=query_list)
-        answer_list = res["result"]
-        return [answer_list]
+        return [r['text'] for r in res['result']]
         
     # @app.post("/call-bot")
-    async def __call__(self, request) -> str:
-        return await self.generate_response(request.query_params["query"])
+    async def __call__(self, request) -> List[str]:
+        output = await self.generate_response(request.query_params["query"])
+        return output
 
     def load_model(self, device_type="cpu", model_id="", model_basename=None, LOGGING=logging):
         """
@@ -141,11 +133,11 @@ class LocalBot:
             elif "awq" in model_basename.lower():
                 #print("Load quantized model awq")
                 #model, tokenizer = load_quantized_model_awq(model_id, LOGGING)
-                llm = VLLM(model=model_basename, trust_remote_code=True, max_new_tokens=MAX_NEW_TOKENS, temperature=0.7, top_k=10, top_p=0.95, quantization="awq")
+                llm = VLLM(model=model_basename, trust_remote_code=True, max_new_tokens=MAX_NEW_TOKENS, temperature=0.7, top_k=10, top_p=0.95, quantization="awq", cache=False)
                 return llm
             else:
                 print("Load gptq model")
-                llm = VLLM(model=model_basename, trust_remote_code=True, max_new_tokens=MAX_NEW_TOKENS, temperature=0.7, top_k=10, top_p=0.95, quantization="gptq", dtype='float16')
+                llm = VLLM(model=model_basename, trust_remote_code=True, max_new_tokens=MAX_NEW_TOKENS, temperature=0.7, top_k=10, top_p=0.95, quantization="gptq", dtype='float16', cache=False)
                 return llm
                 #model, tokenizer = load_quantized_model_qptq(model_id, model_basename, device_type, LOGGING)
         else:
@@ -154,7 +146,7 @@ class LocalBot:
             if device_type == "cpu":
                 model, tokenizer = load_full_model(model_id, model_basename, device_type, LOGGING)
             else:
-                llm = VLLM(model=model_id, trust_remote_code=True, max_new_tokens=MAX_NEW_TOKENS, temperature=0.7, top_k=10, top_p=0.95, tensor_parallel_size=1)
+                llm = VLLM(model=model_id, trust_remote_code=True, max_new_tokens=MAX_NEW_TOKENS, temperature=0.7, top_k=10, top_p=0.95, tensor_parallel_size=1, cache=False)
                 return llm
 
     def create_retrieval_qa_pipeline(self, device_type="cuda", use_history=False, promptTemplate_type="llama", use_retriever=True):
@@ -206,18 +198,18 @@ class LocalBot:
         llm = self.load_model(device_type, model_id=MODEL_ID, model_basename=MODEL_BASENAME, LOGGING=logging)
 
         if use_history:
-            qa = RetrievalQA.from_chain_type(
+            qa = BatchRetrievalQA.from_chain_type(
                 llm=llm,
-                chain_type="stuff",  # try other chains types as well. refine, map_reduce, map_rerank
+                chain_type="batch_stuff",  # try other chains types as well. refine, map_reduce, map_rerank
                 retriever=retriever,
                 return_source_documents=True,  # verbose=True,
                 callbacks=callback_manager,
                 chain_type_kwargs={"prompt": prompt, "memory": memory},
             )
         else:
-            qa = RetrievalQA.from_chain_type(
+            qa = BatchRetrievalQA.from_chain_type(
                 llm=llm,
-                chain_type="stuff",  # try other chains types as well. refine, map_reduce, map_rerank
+                chain_type="batch_stuff",  # try other chains types as well. refine, map_reduce, map_rerank
                 retriever=retriever,
                 return_source_documents=True,  # verbose=True,
                 callbacks=callback_manager,
