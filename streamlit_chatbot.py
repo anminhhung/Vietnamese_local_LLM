@@ -5,7 +5,6 @@ import ray
 import streamlit as st
 import src.utils as utils
 
-@ray.remote
 def send_query(text):
     resp = requests.get("http://localhost:8000/?query={}".format(text))
 
@@ -34,7 +33,7 @@ def run_app():
         
         # Add spinner
         with st.spinner("Thinking..."):
-            res = ray.get(send_query.remote(query))
+            res = send_query(query)
             answer = res
 
         # if translate_output:
