@@ -10,6 +10,9 @@ from vllm.outputs import RequestOutput
 from vllm.sampling_params import SamplingParams
 from vllm.utils import Counter
 from vllm.utils import random_uuid
+from vllm.logger import init_logger
+
+logger = init_logger(__name__)
 
 
 class AsyncLLM:
@@ -108,16 +111,14 @@ class AsyncLLM:
         # Add requests to the engine.
         num_requests = len(prompts) if prompts is not None else len(
             prompt_token_ids)
-        
+        logger.info(f"NUMBER OF REQUEST: {num_requests}")
         if num_requests == 1:
             request_id = random_uuid()
 
             results_generator = self.llm_engine.generate(prompts[0], sampling_params, request_id)
             async for request_output in results_generator:
-                prompt = request_output.prompt
-                text_outputs = [
-                    prompt + output.text for output in request_output.outputs
-                ]
+                text_outputs = [output.text for output in request_output.outputs]
+                text_outputs = " ".join(text_outputs)
                 yield text_outputs 
         else:
             raise NotImplementedError("Batched generation is not supported yet")

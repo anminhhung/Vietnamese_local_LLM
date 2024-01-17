@@ -130,7 +130,7 @@ class StreamingVLLM(BaseLLM):
         stop: Optional[List[str]] = None,
         run_manager: Optional[AsyncCallbackManagerForLLMRun] = None,
         **kwargs: Any,
-    ):
+    ) -> AsyncIterator[GenerationChunk]:
         """Run the LLM on the given prompt and input."""
 
         from vllm import SamplingParams
@@ -140,15 +140,14 @@ class StreamingVLLM(BaseLLM):
         sampling_params = SamplingParams(**params)
         # call the model
         
-        _run_manager = run_manager or AsyncCallbackManagerForChainRun.get_noop_manager()
 
         results_generator = self.client.generate(prompts, sampling_params)
 
         # try:
         async for chunk in results_generator:
-            yield chunk
+            yield GenerationChunk(text=chunk)
             if run_manager:
-                await _run_manager.on_llm_new_token(chunk)
+                await run_manager.on_llm_new_token(chunk)
 
 
         # except (KeyboardInterrupt, Exception) as e:
@@ -159,29 +158,34 @@ class StreamingVLLM(BaseLLM):
 
     async def agenerate_from_stream(self, 
         stream: AsyncIterator[str],
+        run_manager: Optional[AsyncCallbackManagerForLLMRun] = None,
     ) -> LLMResult:
         """Async generate from a stream."""
 
-        generation: Optional[str] = None
+        generation: Optional[GenerationChunk] = None
         async for chunk in stream:
             if generation is None:
                 generation = chunk
             else:
-                generation += chunk
+                generation = chunk
         assert generation is not None
-        return LLMResult(
-            generations=[[generation]]
-        )
+        
+        result = LLMResult(generations=[[generation]])
+        await run_manager.on_llm_end(result)
+
+        return result
 
     async def _agenerate(
         self,
         prompts: List[str],
         stop: Optional[List[str]] = None,
-        run_manager: Optional[AsyncCallbackManagerForChainRun] = None,
+        run_manager: Optional[AsyncCallbackManagerForLLMRun] = None,
         **kwargs: Any,
     ) -> LLMResult:
+        """Run the LLM on the given prompt and input."""
+        print(run_manager)
         stream_iter = self._astream(prompts, stop, run_manager, **kwargs)
-        return await self.agenerate_from_stream(stream_iter)
+        return await self.agenerate_from_stream(stream_iter, run_manager=run_manager)
 
     @property
     def _llm_type(self) -> str:

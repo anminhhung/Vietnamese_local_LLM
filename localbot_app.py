@@ -2,10 +2,10 @@ import os
 import sys 
 import ray
 import logging
-from typing import List 
+from typing import List, Awaitable
 from ray import serve
 import asyncio
-# from fastapi import FastAPI
+from fastapi import FastAPI
 
 import langchain 
 from langchain.chains import RetrievalQA
@@ -21,9 +21,9 @@ from langchain.cache import SQLiteCache
 from src.prompt_template_utils import get_prompt_template
 from langchain.vectorstores import Chroma
 from transformers import GenerationConfig, pipeline
-from langchain.llms.vllm import VLLM
+from langchain.llms.vllm import VLLM, VLLMOpenAI
 
-from starlette.responses import StreamingResponse
+from starlette.responses import StreamingResponse, Response
 from langchain.callbacks.streaming_aiter import AsyncIteratorCallbackHandler
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
@@ -51,7 +51,7 @@ from src.constants import (
 
 
 
-# app = FastAPI()
+app = FastAPI()
 handler = AsyncIteratorCallbackHandler()
 callback_manager = AsyncCallbackManager([handler])
 
@@ -68,7 +68,7 @@ callback_manager = AsyncCallbackManager([handler])
         "max_replicas": cfg.RAY_CONFIG.MAX_REPLICAS,
     },
 )
-# @serve.ingress(app)
+@serve.ingress(app)
 class LocalBot:
     def __init__(self):
         os.environ["OMP_NUM_THREADS"] = "{}".format(cfg.RAY_CONFIG.OMP_NUM_THREADS)
@@ -80,23 +80,42 @@ class LocalBot:
 
     @serve.batch(max_batch_size=cfg.RAY_CONFIG.MAX_BATCH_SIZE, 
                  batch_wait_timeout_s=cfg.RAY_CONFIG.BATCH_TIMEOUT
-    )    
-    async def generate_response(self, query_list) -> List[str]:
-        print("QUERY LIST: ",  query_list)
+    )  
+    async def agenerate_response(self, query_list):
         # res = self.qa_pipeline(inputs=query_list)
+        print("CALL BACKS STARTED", callback_manager)
 
-        asyncio.create_task(self.qa_pipeline._acall(inputs=query_list))
-        res = []
+        async def wrap_done(fn: Awaitable, event: asyncio.Event):
+            """Wrap an awaitable with a event to signal when it's done or an exception is raised."""
+            try:
+                await fn
+            except Exception as e:
+                # TODO: handle exception
+                print(f"Caught exception: {e}")
+            finally:
+                # Signal the aiter to stop.
+                event.set()
+
+        task = asyncio.create_task(wrap_done(self.qa_pipeline._acall(inputs=query_list, run_manager=callback_manager), handler.done))
         async for step in handler.aiter():
-            print(step)
+            print("STEP: ", step)
+            yield [step]
 
-        
-        return [r['text'] for r in res['result']]
-        
-    # @app.post("/call-bot")
-    async def __call__(self, request) -> List[str]:
-        output = await self.generate_response(request.query_params["query"])
-        return output
+        await task
+
+    @app.post("/stream-bot")
+    async def get_streaming_response(self, query):
+
+        return StreamingResponse(self.agenerate_response(query))
+
+    @app.post("/generate-bot")
+    def generate_response(self, query_list) -> List[str]:   
+        res = self.qa_pipeline(inputs=query_list)
+        return Response(res["result"])
+                
+    # def __call__(self, request) -> List[str]:
+    #     output = self.generate_response(request.query_params["query"])
+    #     return output
 
     def load_model(self, device_type="cpu", model_id="", model_basename=None, LOGGING=logging):
         """

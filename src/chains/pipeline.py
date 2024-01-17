@@ -53,7 +53,7 @@ class BatchRetrievalQA(BaseRetrievalQA):
     ) -> List[List[Document]]:
         """Get docs."""
         return self.retriever.get_relevant_documents(
-            question, callbacks=run_manager.get_child()
+            question, callbacks=run_manager
         )
 
     async def _aget_docs(
@@ -64,7 +64,7 @@ class BatchRetrievalQA(BaseRetrievalQA):
     ) -> List[Document]:
         """Get docs."""
         return await self.retriever.aget_relevant_documents(
-            question, callbacks=run_manager.get_child()
+            question, callbacks=run_manager
         )
 
 
@@ -104,18 +104,19 @@ class BatchRetrievalQA(BaseRetrievalQA):
         res = indexqa({'query': 'This is my query'})
         answer, docs = res['result'], res['source_documents']
         """
-        _run_manager = run_manager or AsyncCallbackManagerForChainRun.get_noop_manager()
-        print("INPUTS")
         questions = inputs
+        if not isinstance(inputs, List):
+            questions = [inputs]
+
         accepts_run_manager = (
             "run_manager" in inspect.signature(self._aget_docs).parameters
         )
         if accepts_run_manager:
-            docs = [await self._aget_docs(question, run_manager=_run_manager) for question in questions]
+            docs = [await self._aget_docs(question, run_manager=run_manager) for question in questions]
         else:
             docs = [await self._aget_docs(question) for question in questions]  # type: ignore[call-arg]
         answer = await self.combine_documents_chain.arun(
-            input_documents=docs, question=questions, callbacks=_run_manager.get_child()
+            input_documents=docs, question=questions, callbacks=run_manager
         )
 
         if self.return_source_documents:
@@ -151,7 +152,7 @@ class BatchRetrievalQA(BaseRetrievalQA):
             docs = [self._get_docs(question, run_manager=_run_manager) for question in questions]
         
         answer = self.combine_documents_chain.run(
-            input_documents=docs, question=questions, callbacks=_run_manager.get_child()
+            input_documents=docs, question=questions, callbacks=_run_manager
         )
 
         if self.return_source_documents:
@@ -337,9 +338,25 @@ class BatchStuffDocumentsChain(BaseCombineDocumentsChain):
         """
         inputs = self._get_inputs(docs, **kwargs)
         # Call predict on the LLM.
-        output = await self.llm_chain.agenerate(inputs)
-        print(output)
+        print("CALLBACKS A: ", callbacks)
+        output = await self.llm_chain.agenerate(inputs, run_manager=callbacks)
         return output, {}
+
+    async def _acall(
+        self,
+        inputs: Dict[str, List[Document]],
+        run_manager: Optional[AsyncCallbackManagerForChainRun] = None,
+    ) -> Dict[str, str]:
+        """Prepare inputs, call combine docs, prepare outputs."""
+        _run_manager = run_manager or AsyncCallbackManagerForChainRun.get_noop_manager()
+        docs = inputs[self.input_key]
+        # Other keys are assumed to be needed for LLM prediction
+        other_keys = {k: v for k, v in inputs.items() if k != self.input_key}
+        output, extra_return_dict = await self.acombine_docs(
+            docs, callbacks=_run_manager, **other_keys
+        )
+        extra_return_dict[self.output_key] = output
+        return extra_return_dict
 
     @property
     def _chain_type(self) -> str:
@@ -355,7 +372,6 @@ def _load_batch_stuff_chain(
     **kwargs: Any,
 ) -> BatchStuffDocumentsChain:
     _prompt = prompt or stuff_prompt.PROMPT_SELECTOR.get_prompt(llm)
-    print(callbacks)
     llm_chain = LLMChain(
         llm=llm,
         prompt=_prompt,

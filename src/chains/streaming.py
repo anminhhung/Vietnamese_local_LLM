@@ -1,6 +1,5 @@
 from queue import Empty, Queue
 
-
 class BatchStreamer:
     def __init__(self, timeout: float = None):
         self.q = Queue()
