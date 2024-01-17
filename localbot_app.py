@@ -12,7 +12,7 @@ from langchain.chains import RetrievalQA
 from langchain.embeddings import HuggingFaceInstructEmbeddings
 from langchain.llms import HuggingFacePipeline
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler  # for streaming response
-from langchain.callbacks.manager import CallbackManager
+from langchain.callbacks.manager import CallbackManager, AsyncCallbackManager
 from src.nlp_preprocessing import Translation
 from langchain.retrievers.document_compressors import EmbeddingsFilter
 from langchain.retrievers import ContextualCompressionRetriever
@@ -23,14 +23,15 @@ from langchain.vectorstores import Chroma
 from transformers import GenerationConfig, pipeline
 from langchain.llms.vllm import VLLM
 
-from fastapi import FastAPI
 from starlette.responses import StreamingResponse
-
+from langchain.callbacks.streaming_aiter import AsyncIteratorCallbackHandler
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 from src.chains.retrievers import DummyRetriever
 from src.chains.pipeline import BatchRetrievalQA
+from src.chains.llm_chains import StreamingVLLM
+
 from src.load_models import (
     load_quantized_model_awq,
     load_quantized_model_gguf_ggml,
@@ -51,8 +52,8 @@ from src.constants import (
 
 
 # app = FastAPI()
-
-callback_manager = CallbackManager([StreamingStdOutCallbackHandler()])
+handler = AsyncIteratorCallbackHandler()
+callback_manager = AsyncCallbackManager([handler])
 
 
 @serve.deployment(
@@ -80,9 +81,16 @@ class LocalBot:
     @serve.batch(max_batch_size=cfg.RAY_CONFIG.MAX_BATCH_SIZE, 
                  batch_wait_timeout_s=cfg.RAY_CONFIG.BATCH_TIMEOUT
     )    
-    async def generate_response(self, query_list: List[str]) -> List[str]:
-        res = self.qa_pipeline.stream(inputs=query_list)
-        print(res)
+    async def generate_response(self, query_list) -> List[str]:
+        print("QUERY LIST: ",  query_list)
+        # res = self.qa_pipeline(inputs=query_list)
+
+        asyncio.create_task(self.qa_pipeline._acall(inputs=query_list))
+        res = []
+        async for step in handler.aiter():
+            print(step)
+
+        
         return [r['text'] for r in res['result']]
         
     # @app.post("/call-bot")
@@ -159,7 +167,7 @@ class LocalBot:
             if device_type == "cpu":
                 model, tokenizer = load_full_model(model_id, model_basename, device_type, LOGGING)
             else:
-                llm = VLLM(model=model_id, trust_remote_code=True, max_new_tokens=MAX_NEW_TOKENS, temperature=0.7, top_k=10, top_p=0.95, tensor_parallel_size=1, cache=False)
+                llm = StreamingVLLM(model=model_id, trust_remote_code=True, max_new_tokens=MAX_NEW_TOKENS, temperature=0.7, top_k=10, top_p=0.95, tensor_parallel_size=1, cache=False)
                 return llm
 
     def create_retrieval_qa_pipeline(self, device_type="cuda", use_history=False, promptTemplate_type="llama", use_retriever=True):
@@ -211,7 +219,7 @@ class LocalBot:
         llm = self.load_model(device_type, model_id=MODEL_ID, model_basename=MODEL_BASENAME, LOGGING=logging)
 
         if use_history:
-            qa = RetrievalQA.from_chain_type(
+            qa = BatchRetrievalQA.from_chain_type(
                 llm=llm,
                 chain_type="batch_stuff",  # try other chains types as well. refine, map_reduce, map_rerank
                 retriever=retriever,
@@ -220,7 +228,7 @@ class LocalBot:
                 chain_type_kwargs={"prompt": prompt, "memory": memory},
             )
         else:
-            qa = RetrievalQA.from_chain_type(
+            qa = BatchRetrievalQA.from_chain_type(
                 llm=llm,
                 chain_type="batch_stuff",  # try other chains types as well. refine, map_reduce, map_rerank
                 retriever=retriever,
