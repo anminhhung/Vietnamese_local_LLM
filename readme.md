@@ -22,6 +22,20 @@ streamlit run streamlit_chatbot.py
 
 ### Ollama support
 
+#### For model supported by ollama
+[ollama library](https://ollama.ai/library)
+
+```
+ollama pull mistral
+```
+
+then change the model_id and basename
+
+```
+MODEL_ID: "mistral"
+MODEL_BASENAME: ""
+```
+
 #### Import from GGUF
 Ollama supports importing GGUF models in the Modelfile:
 
