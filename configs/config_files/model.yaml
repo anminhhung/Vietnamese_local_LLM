@@ -14,8 +14,9 @@ MODEL:
     Bạn là một trợ lý ảo hữu ích, bạn sẽ sử dụng ngữ cảnh được cung cấp để trả lời các câu hỏi của người dùng. 
     Hãy đọc ngữ cảnh được cung cấp trước khi trả lời câu hỏi và suy nghĩ từng bước.
   "
+  USE_OLLAMA: True
 
-  MODEL_TYPE: "llama" # ["llama", "mistral", "non_llama"],
+  MODEL_TYPE: "mistral" # ["llama", "mistral", "non_llama"],
   EMBEDDING_MODEL_NAME: "intfloat/multilingual-e5-base"
   
   # MODEL_ID: "vilm/vinallama-7b-chat-GGUF"
@@ -24,7 +25,7 @@ MODEL:
   # MODEL_ID: "mistralai/Mistral-7B-Instruct-v0.2"
   # MODEL_BASENAME: ""
   
-  MODEL_ID: "TheBloke/Mistral-7B-Instruct-v0.2-AWQ"
+  MODEL_ID: "mixtral"
   MODEL_BASENAME: ""
 
   # MODEL_ID: "qnguyen3/quan-1.8b-chat"

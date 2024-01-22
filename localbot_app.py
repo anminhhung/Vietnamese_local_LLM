@@ -22,6 +22,7 @@ from src.prompt_template_utils import get_prompt_template
 from langchain.vectorstores import Chroma
 from transformers import GenerationConfig, pipeline
 from langchain.llms.vllm import VLLM, VLLMOpenAI
+from langchain.llms import Ollama
 
 from starlette.responses import StreamingResponse, Response
 from langchain.callbacks.streaming_aiter import AsyncIteratorCallbackHandler
@@ -46,15 +47,17 @@ from src.constants import (
     MAX_NEW_TOKENS,
     MODELS_PATH,
     CHROMA_SETTINGS,
+    USE_OLLAMA,
     cfg
 )
 
 
 
 app = FastAPI()
-handler = AsyncIteratorCallbackHandler()
-callback_manager = AsyncCallbackManager([handler])
+#handler = AsyncIteratorCallbackHandler()
+#callback_manager = AsyncCallbackManager([handler])
 
+callback_manager = CallbackManager([StreamingStdOutCallbackHandler()])
 
 @serve.deployment(
     ray_actor_options={"num_cpus": cfg.RAY_CONFIG.NUM_CPUS, 
@@ -103,21 +106,22 @@ class LocalBot:
 
         await task
 
-    @app.post("/stream-bot")
+    @app.post("/api/stream")
     async def get_streaming_response(self, query):
 
         return StreamingResponse(self.agenerate_response(query))
 
-    @app.post("/generate-bot")
-    def generate_response(self, query_list) -> List[str]:   
-        res = self.qa_pipeline(inputs=query_list)
+    @app.post("/api/generate")
+    def generate_response(self, query) -> List[str]:   
+        print("Query: ", query)
+        res = self.qa_pipeline(inputs=query)
         return Response(res["result"])
                 
     # def __call__(self, request) -> List[str]:
     #     output = self.generate_response(request.query_params["query"])
     #     return output
 
-    def load_model(self, device_type="cpu", model_id="", model_basename=None, LOGGING=logging):
+    def load_model(self, device_type="cpu", model_id="", model_basename=None, LOGGING=logging, use_ollama=False):
         """
         Select a model for text generation using the HuggingFace library.
         If you are running this for the first time, it will download a model for you.
@@ -183,11 +187,13 @@ class LocalBot:
         else:
             print("load_full_model")
             logging.info(f"Using mode: {model_id}")
-            if device_type == "cpu":
-                model, tokenizer = load_full_model(model_id, model_basename, device_type, LOGGING)
+            
+            if use_ollama:
+                llm = Ollama(model=model_id, temperature=0.7, top_k=10, top_p=0.95)
             else:
                 llm = StreamingVLLM(model=model_id, trust_remote_code=True, max_new_tokens=MAX_NEW_TOKENS, temperature=0.7, top_k=10, top_p=0.95, tensor_parallel_size=1, cache=False)
-                return llm
+            return llm
+            
 
     def create_retrieval_qa_pipeline(self, device_type="cuda", use_history=False, promptTemplate_type="llama", use_retriever=True):
         """
@@ -235,21 +241,27 @@ class LocalBot:
         prompt, memory = get_prompt_template(promptTemplate_type=promptTemplate_type, history=use_history)
 
         # load the llm pipeline
-        llm = self.load_model(device_type, model_id=MODEL_ID, model_basename=MODEL_BASENAME, LOGGING=logging)
-
+        llm = self.load_model(device_type, model_id=MODEL_ID, model_basename=MODEL_BASENAME, LOGGING=logging, use_ollama=USE_OLLAMA)
+        
+        qa_type = BatchRetrievalQA
+        chain_type = "batch_stuff"
+        if USE_OLLAMA:
+            qa_type = RetrievalQA
+            chain_type = "stuff"
+            
         if use_history:
-            qa = BatchRetrievalQA.from_chain_type(
+            qa = qa_type.from_chain_type(
                 llm=llm,
-                chain_type="batch_stuff",  # try other chains types as well. refine, map_reduce, map_rerank
+                chain_type=chain_type,  # try other chains types as well. refine, map_reduce, map_rerank
                 retriever=retriever,
                 return_source_documents=True,  # verbose=True,
                 callbacks=callback_manager,
                 chain_type_kwargs={"prompt": prompt, "memory": memory},
             )
         else:
-            qa = BatchRetrievalQA.from_chain_type(
+            qa = qa_type.from_chain_type(
                 llm=llm,
-                chain_type="batch_stuff",  # try other chains types as well. refine, map_reduce, map_rerank
+                chain_type=chain_type,  # try other chains types as well. refine, map_reduce, map_rerank
                 retriever=retriever,
                 return_source_documents=True,  # verbose=True,
                 callbacks=callback_manager,
