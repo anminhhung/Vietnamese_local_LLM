@@ -2,6 +2,7 @@ import os
 import sys 
 import ray
 import logging
+import json 
 from typing import List, Awaitable
 from ray import serve
 import asyncio
@@ -50,8 +51,6 @@ from src.constants import (
     USE_OLLAMA,
     cfg
 )
-
-
 
 app = FastAPI()
 #handler = AsyncIteratorCallbackHandler()
@@ -115,6 +114,7 @@ class LocalBot:
     def generate_response(self, query) -> List[str]:   
         print("Query: ", query)
         res = self.qa_pipeline(inputs=query)
+
         return Response(res["result"])
                 
     # def __call__(self, request) -> List[str]:
@@ -276,5 +276,21 @@ class LocalBot:
 logging.basicConfig(format="%(asctime)s - %(levelname)s - %(filename)s:%(lineno)s - %(message)s", level=logging.INFO)
 if not os.path.exists(MODELS_PATH):
     os.makedirs(MODELS_PATH, exist_ok=True)
+
+ray.init(
+    _system_config={
+        "max_io_workers":4,
+        "min_spilling_size": 100*1024*1024, # Spill at least 100MB at a time
+        "object_spilling_config": json.dumps(
+            {
+                "type": "filesystem",
+                "params":{
+                    "directory_path": "/tmp/spill",
+                },
+                "buffer_size": 100*1024*1024, # use a 100MB buffer for writes
+            }
+        )
+    }
+)
 
 app_bot = LocalBot.bind()

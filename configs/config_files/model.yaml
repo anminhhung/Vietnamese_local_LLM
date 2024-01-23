@@ -5,7 +5,7 @@ MODEL:
   DEVICE: 'cuda' # ["cpu", "cuda", "ipu", "xpu", "mkldnn", "opengl", "opencl", "ideep", "hip", 
                 #  "ve", "fpga", "ort", "xla", "lazy", "vulkan", "mps", "meta", "hpu", "mtia"]
 
-  SIMILARITY_THRESHOLD: 0.8
+  SIMILARITY_THRESHOLD: 0.6
 
   USE_HISTORY: FALSE
   USE_RETRIEVER: False
@@ -25,7 +25,7 @@ MODEL:
   # MODEL_ID: "mistralai/Mistral-7B-Instruct-v0.2"
   # MODEL_BASENAME: ""
   
-  MODEL_ID: "mixtral"
+  MODEL_ID: "mistral" # example
   MODEL_BASENAME: ""
 
   # MODEL_ID: "qnguyen3/quan-1.8b-chat"

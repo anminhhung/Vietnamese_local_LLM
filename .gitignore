@@ -10,3 +10,6 @@ local_chat_history/
 *.pdf 
 *.mmd 
 *.docx
+*.gguf
+SOURCE_DOCUMENTS/
+data/

@@ -4,9 +4,11 @@ import requests
 import ray
 import streamlit as st
 import src.utils as utils
+from googletrans import Translator
+
 
 def send_query(text):
-    resp = requests.get("http://localhost:8000/?query={}".format(text))
+    resp = requests.post("http://localhost:8000/api/generate/?query={}".format(text))
 
     return resp.text
 
@@ -26,7 +28,7 @@ def run_app():
         
     # Initialize the QA system using caching
     # translater = Translation(from_lang="en", to_lang='vi', mode='translate') 
-
+    translator = Translator()
     if query := st.chat_input():
         st.session_state.messages.append({"role": "user", "content": query})
         st.chat_message("user").write(query)
@@ -34,6 +36,7 @@ def run_app():
         # Add spinner
         with st.spinner("Thinking..."):
             res = send_query(query)
+            res = translator.translate(res, dest="vi").text
             answer = res
 
         # if translate_output:
