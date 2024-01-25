@@ -8,7 +8,7 @@ MODEL:
   SIMILARITY_THRESHOLD: 0.6
 
   USE_HISTORY: FALSE
-  USE_RETRIEVER: False
+  USE_RETRIEVER: True
 
   SYSTEM_PROMPT: "
     Bạn là một trợ lý ảo hữu ích, bạn sẽ sử dụng ngữ cảnh được cung cấp để trả lời các câu hỏi của người dùng. 
@@ -25,7 +25,7 @@ MODEL:
   # MODEL_ID: "mistralai/Mistral-7B-Instruct-v0.2"
   # MODEL_BASENAME: ""
   
-  MODEL_ID: "mistral" # example
+  MODEL_ID: "vistral" # vistral #mistral 
   MODEL_BASENAME: ""
 
   # MODEL_ID: "qnguyen3/quan-1.8b-chat"

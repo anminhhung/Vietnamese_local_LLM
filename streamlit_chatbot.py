@@ -36,7 +36,7 @@ def run_app():
         # Add spinner
         with st.spinner("Thinking..."):
             res = send_query(query)
-            res = translator.translate(res, dest="vi").text
+            # res = translator.translate(res, dest="vi").text
             answer = res
 
         # if translate_output:
