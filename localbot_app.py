@@ -9,25 +9,33 @@ import asyncio
 from fastapi import FastAPI
 
 import langchain 
-from langchain.chains import RetrievalQA
+from langchain.chains import RetrievalQA, ConversationalRetrievalChain
 from langchain.embeddings import HuggingFaceInstructEmbeddings
 from langchain.llms import HuggingFacePipeline
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler  # for streaming response
 from langchain.callbacks.manager import CallbackManager, AsyncCallbackManager
+from langchain.callbacks.base import BaseCallbackHandler
+
 from src.nlp_preprocessing import Translation
 from langchain.retrievers.document_compressors import EmbeddingsFilter
 from langchain.retrievers import ContextualCompressionRetriever
 from langchain.cache import SQLiteCache
-
+from queue import Empty
 from src.prompt_template_utils import get_prompt_template
 from langchain.vectorstores import Chroma
 from transformers import GenerationConfig, pipeline
 from langchain.llms.vllm import VLLM, VLLMOpenAI
 from langchain.llms import Ollama
-
+from langchain.callbacks.streaming_stdout_final_only import FinalStreamingStdOutCallbackHandler
+from langchain.callbacks import StreamlitCallbackHandler
+from langchain.callbacks.base import BaseCallbackHandler
+from langchain.schema.messages import BaseMessage
+from langchain.schema import LLMResult
+from typing import Dict, List, Any
+from queue import Queue
+from langchain.llms import OpenAI
 from starlette.responses import StreamingResponse, Response
 from langchain.callbacks.streaming_aiter import AsyncIteratorCallbackHandler
-
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 from src.chains.retrievers import DummyRetriever
@@ -53,68 +61,120 @@ from src.constants import (
 )
 
 app = FastAPI()
-#handler = AsyncIteratorCallbackHandler()
-#callback_manager = AsyncCallbackManager([handler])
 
-callback_manager = CallbackManager([StreamingStdOutCallbackHandler()])
+class MyCustomHandler(BaseCallbackHandler):
+    def __init__(self, queue) -> None:
+        super().__init__()
+        # we will be providing the streamer queue as an input
+        self._queue = queue
+        # defining the stop signal that needs to be added to the queue in
+        # case of the last token
+        self._stop_signal = None
+        print("Custom handler Initialized")
+    
+    # On the arrival of the new token, we are adding the new token in the 
+    # queue
+    def on_llm_new_token(self, token: str, **kwargs) -> None:
+        self._queue.put(token)
 
-@serve.deployment(
-    ray_actor_options={"num_cpus": cfg.RAY_CONFIG.NUM_CPUS, 
-                       "num_gpus": cfg.RAY_CONFIG.NUM_GPUS
-    },
-    max_concurrent_queries=cfg.RAY_CONFIG.MAX_CONCURRENT_QUERIES,
-    autoscaling_config={
-        "target_num_ongoing_requests_per_replica": cfg.RAY_CONFIG.NUM_REQUESTS_PER_REPLICA,
-        "min_replicas": cfg.RAY_CONFIG.MIN_REPLICAS,
-        "initial_replicas": cfg.RAY_CONFIG.INIT_REPLICAS,
-        "max_replicas": cfg.RAY_CONFIG.MAX_REPLICAS,
-    },
-)
+    # on the start or initialization, we just print or log a starting message
+    def on_llm_start(
+        self, serialized: Dict[str, Any], prompts: List[str], **kwargs: Any
+    ) -> None:
+        """Run when LLM starts running."""
+        print("generation started")
+
+    # On receiving the last token, we add the stop signal, which determines
+    # the end of the generation
+    def on_llm_end(self, response: LLMResult, **kwargs: Any) -> None:
+        """Run when LLM ends running."""
+        print("\n\ngeneration concluded")
+        self._queue.put(self._stop_signal)
+
+# streamer_queue = Queue()
+handler = FinalStreamingStdOutCallbackHandler()
+
+callback_manager = CallbackManager([handler])
+
+# handler = FinalStreamingStdOutCallbackHandler()
+# callback_manager = CallbackManager([handler])
+
+# @serve.deployment(
+#     ray_actor_options={"num_cpus": cfg.RAY_CONFIG.NUM_CPUS, 
+#                        "num_gpus": cfg.RAY_CONFIG.NUM_GPUS
+#     },
+#     max_concurrent_queries=cfg.RAY_CONFIG.MAX_CONCURRENT_QUERIES,
+#     autoscaling_config={
+#         "target_num_ongoing_requests_per_replica": cfg.RAY_CONFIG.NUM_REQUESTS_PER_REPLICA,
+#         "min_replicas": cfg.RAY_CONFIG.MIN_REPLICAS,
+#         "initial_replicas": cfg.RAY_CONFIG.INIT_REPLICAS,
+#         "max_replicas": cfg.RAY_CONFIG.MAX_REPLICAS,
+#     },
+# )
+@serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": cfg.RAY_CONFIG.NUM_CPUS, 
+                       "num_gpus": cfg.RAY_CONFIG.NUM_GPUS})
 @serve.ingress(app)
 class LocalBot:
     def __init__(self):
         os.environ["OMP_NUM_THREADS"] = "{}".format(cfg.RAY_CONFIG.OMP_NUM_THREADS)
         self.qa_pipeline = self.setup_retrieval_qa_pipeline()
+        self.loop = asyncio.get_running_loop()
 
     def setup_retrieval_qa_pipeline(self):
         langchain.llm_cache = SQLiteCache(database_path=cfg.STORAGE.CACHE_DB_PATH)
         return self.create_retrieval_qa_pipeline(cfg.MODEL.DEVICE, cfg.MODEL.USE_HISTORY, cfg.MODEL.MODEL_TYPE, cfg.MODEL.USE_RETRIEVER)
 
-    @serve.batch(max_batch_size=cfg.RAY_CONFIG.MAX_BATCH_SIZE, 
-                 batch_wait_timeout_s=cfg.RAY_CONFIG.BATCH_TIMEOUT
-    )  
+    # @serve.batch(max_batch_size=cfg.RAY_CONFIG.MAX_BATCH_SIZE, 
+    #              batch_wait_timeout_s=cfg.RAY_CONFIG.BATCH_TIMEOUT
+    # )
     async def agenerate_response(self, query_list):
         # res = self.qa_pipeline(inputs=query_list)
-        print("CALL BACKS STARTED", callback_manager)
+        if USE_OLLAMA:
+            # run = asyncio.create_task(self.qa_pipeline.arun(query_list))
+            # print("CREATE TASK")
+            # print("HANDLER: ", handler.queue.empty())
+            # async for token in handler.aiter():
+            #     logging.info(f"Yielding token: '{token}'")
+            #     yield token['result']
 
-        async def wrap_done(fn: Awaitable, event: asyncio.Event):
-            """Wrap an awaitable with a event to signal when it's done or an exception is raised."""
-            try:
-                await fn
-            except Exception as e:
-                # TODO: handle exception
-                print(f"Caught exception: {e}")
-            finally:
-                # Signal the aiter to stop.
-                event.set()
+            # await run
+            for chunk in self.qa_pipeline.stream(query_list):
+                logging.info(chunk['result'])
+                yield chunk['result']
+            # Starting an infinite loop
+                        
+        else:
+            async def wrap_done(fn: Awaitable, event: asyncio.Event):
+                """Wrap an awaitable with a event to signal when it's done or an exception is raised."""
+                try:
+                    await fn
+                except Exception as e:
+                    # TODO: handle exception
+                    print(f"Caught exception: {e}")
+                finally:
+                    # Signal the aiter to stop.
+                    event.set()
 
-        task = asyncio.create_task(wrap_done(self.qa_pipeline._acall(inputs=query_list, run_manager=callback_manager), handler.done))
-        async for step in handler.aiter():
-            print("STEP: ", step)
-            yield [step]
+            task = asyncio.create_task(wrap_done(self.qa_pipeline._acall(inputs=query_list, run_manager=callback_manager), handler.done))
+            async for step in handler.aiter():
+                print("STEP: ", step)
+                yield [step]
 
-        await task
+            await task
 
     @app.post("/api/stream")
     async def get_streaming_response(self, query):
-
-        return StreamingResponse(self.agenerate_response(query))
+        print("Query: ", query)
+        return StreamingResponse(self.agenerate_response(query),  media_type="text/event-stream")
 
     @app.post("/api/generate")
     def generate_response(self, query) -> List[str]:   
         print("Query: ", query)
         res = self.qa_pipeline(inputs=query)
-        print(res)
+        # docs = res['source_documents']
+        # for document in docs:
+        #     print("\n> " + document.metadata["source"] + ":")
+        #     print(document.page_content)
 
         return Response(res["result"])
                 
@@ -190,7 +250,7 @@ class LocalBot:
             logging.info(f"Using mode: {model_id}")
             
             if use_ollama:
-                llm = Ollama(model=model_id, temperature=0.7, top_k=10, top_p=0.95)
+                llm = Ollama(model=model_id, temperature=0.7, top_k=10, top_p=0.95, callbacks=[handler])
             else:
                 llm = StreamingVLLM(model=model_id, trust_remote_code=True, max_new_tokens=MAX_NEW_TOKENS, temperature=0.7, top_k=10, top_p=0.95, tensor_parallel_size=1, cache=False)
             return llm
