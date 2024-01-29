@@ -58,6 +58,9 @@ from src.constants import (
     USE_OLLAMA,
     cfg
 )
+
+from googletrans import Translator
+
 handler = AsyncIteratorCallbackHandler()
 
 app = FastAPI()
@@ -86,9 +89,11 @@ class LocalBot:
         os.environ["OMP_NUM_THREADS"] = "{}".format(cfg.RAY_CONFIG.OMP_NUM_THREADS)
         self.qa_pipeline = self.setup_retrieval_qa_pipeline()
         self.loop = asyncio.get_running_loop()
+        self.translator = Translator()
+        self.use_translate = cfg.MODEL.USE_TRANSLATE
 
     def setup_retrieval_qa_pipeline(self):
-        langchain.llm_cache = SQLiteCache(database_path=cfg.STORAGE.CACHE_DB_PATH)
+        # langchain.llm_cache = SQLiteCache(database_path=cfg.STORAGE.CACHE_DB_PATH)
         return self.create_retrieval_qa_pipeline(cfg.MODEL.DEVICE, cfg.MODEL.USE_HISTORY, cfg.MODEL.MODEL_TYPE, cfg.MODEL.USE_RETRIEVER)
 
     # @serve.batch(max_batch_size=cfg.RAY_CONFIG.MAX_BATCH_SIZE, 
@@ -106,7 +111,11 @@ class LocalBot:
     async def agenerate_response(self, result):
         if USE_OLLAMA:
             for item in result:
+                if self.use_translate:
+                    item["result"] = self.translator.translate(item["result"], dest="vi").text
+
                 for token in item['result'].split(' '):
+                    print("item['result']: ",item['result'])
 
                     await asyncio.sleep(0.01)
                     yield token + ' '
@@ -131,8 +140,8 @@ class LocalBot:
     @app.post("/api/stream")
     async def get_streaming_response(self, query):
         print("Query: ", query)
-        # resp = self.qa_pipeline.run(query)
         result = self.qa_pipeline.stream(query)
+
         return StreamingResponse(self.agenerate_response(result), media_type="text/plain")
 
     @app.post("/api/generate")
@@ -198,11 +207,11 @@ class LocalBot:
             elif "awq" in model_basename.lower():
                 #print("Load quantized model awq")
                 #model, tokenizer = load_quantized_model_awq(model_id, LOGGING)
-                llm = VLLM(model=model_basename, trust_remote_code=True, max_new_tokens=MAX_NEW_TOKENS, temperature=0.7, top_k=10, top_p=0.95, quantization="awq", cache=False)
+                llm = VLLM(model=model_basename, trust_remote_code=True, max_new_tokens=MAX_NEW_TOKENS, temperature=cfg.MODEL.TEMPERATURE, top_k=10, top_p=0.95, quantization="awq", cache=False)
                 return llm
             else:
                 print("Load gptq model")
-                llm = VLLM(model=model_basename, trust_remote_code=True, max_new_tokens=MAX_NEW_TOKENS, temperature=0.7, top_k=10, top_p=0.95, quantization="gptq", dtype='float16', cache=False)
+                llm = VLLM(model=model_basename, trust_remote_code=True, max_new_tokens=MAX_NEW_TOKENS, temperature=cfg.MODEL.TEMPERATURE, top_k=10, top_p=0.95, quantization="gptq", dtype='float16', cache=False)
                 return llm
                 #model, tokenizer = load_quantized_model_qptq(model_id, model_basename, device_type, LOGGING)
         else:
@@ -210,7 +219,7 @@ class LocalBot:
             logging.info(f"Using mode: {model_id}")
             
             if use_ollama:
-                llm = Ollama(model=model_id, temperature=0.7, top_k=10, top_p=0.95, callbacks=[handler], cache=False)
+                llm = Ollama(model=model_id, temperature=cfg.MODEL.TEMPERATURE, top_k=10, top_p=0.95, callbacks=[handler], cache=False)
             else:
                 llm = StreamingVLLM(model=model_id, trust_remote_code=True, max_new_tokens=MAX_NEW_TOKENS, temperature=0.7, top_k=10, top_p=0.95, tensor_parallel_size=1, cache=False)
             return llm

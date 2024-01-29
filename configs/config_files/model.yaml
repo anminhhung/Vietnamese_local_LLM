@@ -5,16 +5,24 @@ MODEL:
   DEVICE: 'cuda' # ["cpu", "cuda", "ipu", "xpu", "mkldnn", "opengl", "opencl", "ideep", "hip", 
                 #  "ve", "fpga", "ort", "xla", "lazy", "vulkan", "mps", "meta", "hpu", "mtia"]
 
-  SIMILARITY_THRESHOLD: 0.6
+  SIMILARITY_THRESHOLD: 0.7
+  TEMPERATURE: 0.2
 
   USE_HISTORY: FALSE
   USE_RETRIEVER: True
-
-  SYSTEM_PROMPT: "
-    Bạn là một trợ lý ảo hữu ích, bạn sẽ sử dụng ngữ cảnh được cung cấp để trả lời các câu hỏi của người dùng. 
-    Hãy đọc ngữ cảnh được cung cấp trước khi trả lời câu hỏi và suy nghĩ từng bước.
-  "
+  USE_TRANSLATE: False
   USE_OLLAMA: True
+
+  # SYSTEM_PROMPT: "
+  #   Bạn là một trợ lý ảo hữu ích, bạn sẽ sử dụng ngữ cảnh được cung cấp để trả lời các câu hỏi của người dùng. 
+  #   Hãy đọc ngữ cảnh được cung cấp trước khi trả lời câu hỏi và suy nghĩ từng bước.
+  # "
+
+  SYSTEM_PROMPT: " 
+    Bạn là một trợ lý ảo hữu ích, bạn sẽ sử dụng ngữ cảnh được cung cấp để trả lời các câu hỏi của người dùng. 
+    Bạn hãy giúp người người dùng bằng cách đọc ngữ cảnh được cung cấp, suy nghĩ thật kỹ câu hỏi và trả lời chi tiết từng bước.
+  "
+
 
   MODEL_TYPE: "mistral" # ["llama", "mistral", "non_llama"],
   EMBEDDING_MODEL_NAME: "intfloat/multilingual-e5-base"

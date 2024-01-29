@@ -37,7 +37,7 @@ def run_app():
         with st.spinner("Thinking..."):
             res = send_query(query)
             res.raise_for_status()
-
+            # translate
             # res = translator.translate(res, dest="vi").text
             answer = res
             with st.chat_message("assistant"):
