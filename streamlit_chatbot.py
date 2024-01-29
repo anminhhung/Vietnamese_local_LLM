@@ -4,11 +4,13 @@ import requests
 import ray
 import streamlit as st
 import src.utils as utils
+from googletrans import Translator
+
 
 def send_query(text):
-    resp = requests.get("http://localhost:8000/?query={}".format(text))
+    resp = requests.post("http://localhost:8000/api/stream?query={}".format(text), stream=True)
 
-    return resp.text
+    return resp
 
 
 def run_app():    
@@ -26,7 +28,7 @@ def run_app():
         
     # Initialize the QA system using caching
     # translater = Translation(from_lang="en", to_lang='vi', mode='translate') 
-
+    translator = Translator()
     if query := st.chat_input():
         st.session_state.messages.append({"role": "user", "content": query})
         st.chat_message("user").write(query)
@@ -34,12 +36,23 @@ def run_app():
         # Add spinner
         with st.spinner("Thinking..."):
             res = send_query(query)
+            res.raise_for_status()
+            # translate
+            # res = translator.translate(res, dest="vi").text
             answer = res
+            with st.chat_message("assistant"):
+                message_placeholder = st.empty()
+                full_response = ""
+            for chunk in res.iter_content(chunk_size=None, decode_unicode=True):
+                full_response += chunk
+                message_placeholder.markdown(full_response + "▌")
+            
+            message_placeholder.markdown(full_response)
 
         # if translate_output:
         #     answer = translater(answer)
         
-        st.session_state.messages.append({"role": "assistant", "content": answer})
+        st.session_state.messages.append({"role": "assistant", "content": full_response})
         # st.chat_message("assistant").write(answer)
         
         # response = answer
@@ -53,7 +66,6 @@ def run_app():
         
         # save_qa
         utils.log_to_csv(query, answer)
-            
         st.chat_message("assistant").write(answer)
 
 if __name__ == "__main__":

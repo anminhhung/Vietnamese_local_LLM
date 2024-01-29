@@ -2,36 +2,51 @@ import os
 import sys 
 import ray
 import logging
-from typing import List 
+import json 
+from typing import List, Awaitable
 from ray import serve
-# from fastapi import FastAPI
+import asyncio
+from fastapi import FastAPI
 
 import langchain 
-from langchain.chains import RetrievalQA
+from langchain.chains import RetrievalQA, ConversationalRetrievalChain
 from langchain.embeddings import HuggingFaceInstructEmbeddings
 from langchain.llms import HuggingFacePipeline
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler  # for streaming response
-from langchain.callbacks.manager import CallbackManager
+from langchain.callbacks.manager import CallbackManager, AsyncCallbackManager
+from langchain.callbacks.base import BaseCallbackHandler
+
 from src.nlp_preprocessing import Translation
 from langchain.retrievers.document_compressors import EmbeddingsFilter
 from langchain.retrievers import ContextualCompressionRetriever
 from langchain.cache import SQLiteCache
-
+from queue import Empty
 from src.prompt_template_utils import get_prompt_template
 from langchain.vectorstores import Chroma
 from transformers import GenerationConfig, pipeline
-from langchain.llms.vllm import VLLM
+from langchain.llms.vllm import VLLM, VLLMOpenAI
+# from langchain.llms import Ollama
+from typing import Any, Dict, List, Optional
 
+# from langchain.callbacks.streaming_stdout_final_only import FinalStreamingStdOutCallbackHandler
+
+from starlette.responses import StreamingResponse, Response
+# from langchain.callbacks.streaming_aiter import AsyncIteratorCallbackHandler
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 from src.chains.retrievers import DummyRetriever
-from src.chains.pipeline import BatchRetrievalQA, BatchStuffDocumentsChain
+from src.chains.pipeline import BatchRetrievalQA
+from src.chains.llm_chains import StreamingVLLM
+
 from src.load_models import (
     load_quantized_model_awq,
     load_quantized_model_gguf_ggml,
     load_quantized_model_qptq,
     load_full_model,
 )
+from asyncio import QueueEmpty
+from src.chains.streaming import FinalStreamingStdOutCallbackHandler, MyCustomHandler, AsyncIteratorCallbackHandler
+from src.llm.ollama_debug import Ollama
 from src.constants import (
     EMBEDDING_MODEL_NAME,
     PERSIST_DIRECTORY,
@@ -40,11 +55,18 @@ from src.constants import (
     MAX_NEW_TOKENS,
     MODELS_PATH,
     CHROMA_SETTINGS,
+    USE_OLLAMA,
     cfg
 )
 
-# app = FastAPI()
-callback_manager = CallbackManager([StreamingStdOutCallbackHandler()])
+from googletrans import Translator
+
+handler = AsyncIteratorCallbackHandler()
+
+app = FastAPI()
+
+
+callback_manager = AsyncCallbackManager([handler])
 
 
 @serve.deployment(
@@ -59,29 +81,77 @@ callback_manager = CallbackManager([StreamingStdOutCallbackHandler()])
         "max_replicas": cfg.RAY_CONFIG.MAX_REPLICAS,
     },
 )
-# @serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": 0.2, "num_gpus": 0.8})
+# @serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": cfg.RAY_CONFIG.NUM_CPUS, 
+#                        "num_gpus": cfg.RAY_CONFIG.NUM_GPUS})
+@serve.ingress(app)
 class LocalBot:
     def __init__(self):
         os.environ["OMP_NUM_THREADS"] = "{}".format(cfg.RAY_CONFIG.OMP_NUM_THREADS)
         self.qa_pipeline = self.setup_retrieval_qa_pipeline()
+        self.loop = asyncio.get_running_loop()
+        self.translator = Translator()
+        self.use_translate = cfg.MODEL.USE_TRANSLATE
 
     def setup_retrieval_qa_pipeline(self):
-        langchain.llm_cache = SQLiteCache(database_path=cfg.STORAGE.CACHE_DB_PATH)
+        # langchain.llm_cache = SQLiteCache(database_path=cfg.STORAGE.CACHE_DB_PATH)
         return self.create_retrieval_qa_pipeline(cfg.MODEL.DEVICE, cfg.MODEL.USE_HISTORY, cfg.MODEL.MODEL_TYPE, cfg.MODEL.USE_RETRIEVER)
 
-    @serve.batch(max_batch_size=cfg.RAY_CONFIG.MAX_BATCH_SIZE, 
-                 batch_wait_timeout_s=cfg.RAY_CONFIG.BATCH_TIMEOUT
-    )    
-    async def generate_response(self, query_list: List[str]) -> List[str]:
-        res = self.qa_pipeline(inputs=query_list)
-        return [r['text'] for r in res['result']]
-        
-    # @app.post("/call-bot")
-    async def __call__(self, request) -> List[str]:
-        output = await self.generate_response(request.query_params["query"])
-        return output
+    # @serve.batch(max_batch_size=cfg.RAY_CONFIG.MAX_BATCH_SIZE, 
+    #              batch_wait_timeout_s=cfg.RAY_CONFIG.BATCH_TIMEOUT
+    # )
 
-    def load_model(self, device_type="cpu", model_id="", model_basename=None, LOGGING=logging):
+    async def consumer(self, queue):
+        while True:
+            item = await queue.get()
+            if item is None:
+                break
+            yield item
+            queue.task_done()
+
+    async def agenerate_response(self, result):
+        if USE_OLLAMA:
+            for item in result:
+                if self.use_translate:
+                    item["result"] = self.translator.translate(item["result"], dest="vi").text
+
+                for token in item['result'].split(' '):
+                    print("item['result']: ",item['result'])
+
+                    await asyncio.sleep(0.01)
+                    yield token + ' '
+        else:
+            async def wrap_done(fn: Awaitable, event: asyncio.Event):
+                """Wrap an awaitable with a event to signal when it's done or an exception is raised."""
+                try:
+                    await fn
+                except Exception as e:
+                #     # TODO: handle exception
+                    print(f"Caught exception: {e}")
+                finally:
+                    # Signal the aiter to stop.
+                    event.set()
+
+            task = asyncio.create_task(wrap_done(self.qa_pipeline._acall(inputs=result, run_manager=callback_manager), handler.done))
+            async for step in handler.aiter():
+                yield [step]
+
+            await task
+
+    @app.post("/api/stream")
+    async def get_streaming_response(self, query):
+        print("Query: ", query)
+        result = self.qa_pipeline.stream(query)
+
+        return StreamingResponse(self.agenerate_response(result), media_type="text/plain")
+
+    @app.post("/api/generate")
+    def generate_response(self, query) -> List[str]:   
+        print("Query: ", query)
+        res = self.qa_pipeline(inputs=query)
+
+        return Response(res["result"])
+
+    def load_model(self, device_type="cpu", model_id="", model_basename=None, LOGGING=logging, use_ollama=False):
         """
         Select a model for text generation using the HuggingFace library.
         If you are running this for the first time, it will download a model for you.
@@ -137,21 +207,23 @@ class LocalBot:
             elif "awq" in model_basename.lower():
                 #print("Load quantized model awq")
                 #model, tokenizer = load_quantized_model_awq(model_id, LOGGING)
-                llm = VLLM(model=model_basename, trust_remote_code=True, max_new_tokens=MAX_NEW_TOKENS, temperature=0.7, top_k=10, top_p=0.95, quantization="awq", cache=False)
+                llm = VLLM(model=model_basename, trust_remote_code=True, max_new_tokens=MAX_NEW_TOKENS, temperature=cfg.MODEL.TEMPERATURE, top_k=10, top_p=0.95, quantization="awq", cache=False)
                 return llm
             else:
                 print("Load gptq model")
-                llm = VLLM(model=model_basename, trust_remote_code=True, max_new_tokens=MAX_NEW_TOKENS, temperature=0.7, top_k=10, top_p=0.95, quantization="gptq", dtype='float16', cache=False)
+                llm = VLLM(model=model_basename, trust_remote_code=True, max_new_tokens=MAX_NEW_TOKENS, temperature=cfg.MODEL.TEMPERATURE, top_k=10, top_p=0.95, quantization="gptq", dtype='float16', cache=False)
                 return llm
                 #model, tokenizer = load_quantized_model_qptq(model_id, model_basename, device_type, LOGGING)
         else:
             print("load_full_model")
             logging.info(f"Using mode: {model_id}")
-            if device_type == "cpu":
-                model, tokenizer = load_full_model(model_id, model_basename, device_type, LOGGING)
+            
+            if use_ollama:
+                llm = Ollama(model=model_id, temperature=cfg.MODEL.TEMPERATURE, top_k=10, top_p=0.95, callbacks=[handler], cache=False)
             else:
-                llm = VLLM(model=model_id, trust_remote_code=True, max_new_tokens=MAX_NEW_TOKENS, temperature=0.7, top_k=10, top_p=0.95, tensor_parallel_size=1, cache=False)
-                return llm
+                llm = StreamingVLLM(model=model_id, trust_remote_code=True, max_new_tokens=MAX_NEW_TOKENS, temperature=0.7, top_k=10, top_p=0.95, tensor_parallel_size=1, cache=False)
+            return llm
+            
 
     def create_retrieval_qa_pipeline(self, device_type="cuda", use_history=False, promptTemplate_type="llama", use_retriever=True):
         """
@@ -199,23 +271,29 @@ class LocalBot:
         prompt, memory = get_prompt_template(promptTemplate_type=promptTemplate_type, history=use_history)
 
         # load the llm pipeline
-        llm = self.load_model(device_type, model_id=MODEL_ID, model_basename=MODEL_BASENAME, LOGGING=logging)
-
+        llm = self.load_model(device_type, model_id=MODEL_ID, model_basename=MODEL_BASENAME, LOGGING=logging, use_ollama=USE_OLLAMA)
+        
+        qa_type = BatchRetrievalQA
+        chain_type = "batch_stuff"
+        if USE_OLLAMA:
+            qa_type = RetrievalQA
+            chain_type = "stuff"
+            
         if use_history:
-            qa = BatchRetrievalQA.from_chain_type(
+            qa = qa_type.from_chain_type(
                 llm=llm,
-                chain_type="batch_stuff",  # try other chains types as well. refine, map_reduce, map_rerank
+                chain_type=chain_type,  # try other chains types as well. refine, map_reduce, map_rerank
                 retriever=retriever,
-                return_source_documents=True,  # verbose=True,
+                return_source_documents=False,  # verbose=True,
                 callbacks=callback_manager,
                 chain_type_kwargs={"prompt": prompt, "memory": memory},
             )
         else:
-            qa = BatchRetrievalQA.from_chain_type(
+            qa = qa_type.from_chain_type(
                 llm=llm,
-                chain_type="batch_stuff",  # try other chains types as well. refine, map_reduce, map_rerank
+                chain_type=chain_type,  # try other chains types as well. refine, map_reduce, map_rerank
                 retriever=retriever,
-                return_source_documents=True,  # verbose=True,
+                return_source_documents=False,  # verbose=True,
                 callbacks=callback_manager,
                 chain_type_kwargs={
                     "prompt": prompt,
@@ -228,5 +306,32 @@ class LocalBot:
 logging.basicConfig(format="%(asctime)s - %(levelname)s - %(filename)s:%(lineno)s - %(message)s", level=logging.INFO)
 if not os.path.exists(MODELS_PATH):
     os.makedirs(MODELS_PATH, exist_ok=True)
+
+# ray.init(
+#     _system_config={
+#         "max_io_workers":4,
+#         "min_spilling_size": 100*1024*1024, # Spill at least 100MB at a time
+#         "object_spilling_config": json.dumps(
+#             {
+#                 "type": "filesystem",
+#                 "params":{
+#                     "directory_path": "/tmp/spill",
+#                 },
+#                 "buffer_size": 100*1024*1024, # use a 100MB buffer for writes
+#             }
+#         )
+#     }
+# )
+
+ray.init(
+    object_store_memory=100 * 1024 * 1024,
+    _system_config={
+        "automatic_object_spilling_enabled": True,
+        "object_spilling_config": json.dumps(
+            {"type": "filesystem", "params": {"directory_path": "/tmp/spill"}},
+            separators=(",", ":")
+        )
+    },
+)
 
 app_bot = LocalBot.bind()

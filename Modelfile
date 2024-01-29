@@ -1,0 +1,1 @@
+FROM ./vitral-7b-chat.Q8_0.gguf

@@ -11,7 +11,7 @@ from transformers import (
 )
 # from intel_extension_for_transformers.transformers import AutoModelForCausalLM
 # 
-from src.constants import CONTEXT_WINDOW_SIZE, MAX_NEW_TOKENS, N_GPU_LAYERS, N_BATCH, MODELS_PATH, cfg
+from src.constants import CONTEXT_WINDOW_SIZE, MAX_NEW_TOKENS, N_GPU_LAYERS, N_BATCH, MODELS_PATH, cfg, USE_OLLAMA
 
 
 def load_quantized_model_gguf_ggml(model_id, model_basename, device_type, logging):
