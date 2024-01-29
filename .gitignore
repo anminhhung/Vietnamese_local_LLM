@@ -13,3 +13,4 @@ local_chat_history/
 *.gguf
 SOURCE_DOCUMENTS/
 data/
+Modelfile

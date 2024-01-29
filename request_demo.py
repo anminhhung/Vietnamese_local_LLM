@@ -1,6 +1,6 @@
 import requests
 
-english_text = "Autoencoder là gì?"
+english_text = "Diffusion model hoạt động như thế nào?"
 
 # response = requests.post(f"http://localhost:8000/api/generate?query={english_text}")
 # response.raise_for_status()
