@@ -8,9 +8,9 @@ MODEL:
   SIMILARITY_THRESHOLD: 0.7
   TEMPERATURE: 0.2
 
-  USE_HISTORY: FALSE
-  USE_RETRIEVER: True
-  USE_TRANSLATE: False
+  USE_HISTORY: True
+  USE_RETRIEVER: False
+  USE_TRANSLATE: True
   USE_OLLAMA: True
 
   # SYSTEM_PROMPT: "
@@ -25,7 +25,10 @@ MODEL:
 
 
   MODEL_TYPE: "mistral" # ["llama", "mistral", "non_llama"],
-  EMBEDDING_MODEL_NAME: "intfloat/multilingual-e5-base"
+  
+  # https://huggingface.co/spaces/mteb/leaderboard
+  EMBEDDING_MODEL_NAME: "intfloat/multilingual-e5-large" #=> 51 #"Salesforce/SFR-Embedding-Mistral" =>58 # "intfloat/e5-mistral-7b-instruct" => 56.89
+
   
   # MODEL_ID: "vilm/vinallama-7b-chat-GGUF"
   # MODEL_BASENAME: "vinallama-7b-chat_q5_0.gguf"
@@ -33,7 +36,7 @@ MODEL:
   # MODEL_ID: "mistralai/Mistral-7B-Instruct-v0.2"
   # MODEL_BASENAME: ""
   
-  MODEL_ID: "vistral" # vistral #mistral 
+  MODEL_ID: "mistral" # vistral #mistral 
   MODEL_BASENAME: ""
 
   # MODEL_ID: "qnguyen3/quan-1.8b-chat"

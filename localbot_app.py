@@ -221,7 +221,7 @@ class LocalBot:
             if use_ollama:
                 llm = Ollama(model=model_id, temperature=cfg.MODEL.TEMPERATURE, top_k=10, top_p=0.95, callbacks=[handler], cache=False)
             else:
-                llm = StreamingVLLM(model=model_id, trust_remote_code=True, max_new_tokens=MAX_NEW_TOKENS, temperature=0.7, top_k=10, top_p=0.95, tensor_parallel_size=1, cache=False)
+                llm = StreamingVLLM(model=model_id, trust_remote_code=True, max_new_tokens=MAX_NEW_TOKENS, temperature=cfg.MODEL.TEMPERATURE, top_k=10, top_p=0.95, tensor_parallel_size=1, cache=False)
             return llm
             
 

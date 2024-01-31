@@ -144,6 +144,7 @@ def main(device_type="cpu"):
     # Create embeddings
     embeddings = HuggingFaceInstructEmbeddings(
         model_name=EMBEDDING_MODEL_NAME,
+        cache_folder = "./models",
         model_kwargs={"device": device_type},
     )
     # change the embedding type here if you are running into issues.
