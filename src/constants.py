@@ -4,8 +4,8 @@ import os
 from chromadb.config import Settings
 
 # https://python.langchain.com/en/latest/modules/indexes/document_loaders/examples/excel.html?highlight=xlsx#microsoft-excel
-from langchain.document_loaders import CSVLoader, PDFMinerLoader, TextLoader, UnstructuredExcelLoader, Docx2txtLoader
-from langchain.document_loaders import UnstructuredFileLoader, UnstructuredMarkdownLoader, JSONLoader, MathpixPDFLoader
+from langchain_community.document_loaders import CSVLoader, PDFMinerLoader, TextLoader, UnstructuredExcelLoader, Docx2txtLoader
+from langchain_community.document_loaders import UnstructuredFileLoader, UnstructuredMarkdownLoader, JSONLoader, MathpixPDFLoader
 from configs.config import get_config
 
 cfg = get_config()
@@ -62,6 +62,7 @@ DOCUMENT_MAP = {
 }
 
 EMBEDDING_MODEL_NAME = cfg.MODEL.EMBEDDING_MODEL_NAME
+EMBEDDING_TYPE = cfg.MODEL.EMBEDDING_TYPE
 MODEL_ID  = cfg.MODEL.MODEL_ID
 MODEL_BASENAME = cfg.MODEL.MODEL_BASENAME
 USE_OLLAMA = cfg.MODEL.USE_OLLAMA

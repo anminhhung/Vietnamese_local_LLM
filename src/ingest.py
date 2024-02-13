@@ -5,10 +5,11 @@ from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_compl
 # import click
 import torch
 from langchain.docstore.document import Document
-from langchain.embeddings import HuggingFaceInstructEmbeddings
+from langchain_community.embeddings import HuggingFaceInstructEmbeddings, OllamaEmbeddings
+
 from langchain.text_splitter import Language, RecursiveCharacterTextSplitter
-from langchain.vectorstores import Chroma
-from langchain.document_loaders import JSONLoader, MathpixPDFLoader
+from langchain_community.vectorstores.chroma import Chroma
+from langchain_community.document_loaders import JSONLoader
 import sys 
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
@@ -16,6 +17,7 @@ from src.constants import (
     CHROMA_SETTINGS,
     DOCUMENT_MAP,
     EMBEDDING_MODEL_NAME,
+    EMBEDDING_TYPE,
     INGEST_THREADS,
     PERSIST_DIRECTORY,
     SOURCE_DIRECTORY,
@@ -142,11 +144,19 @@ def main(device_type="cpu"):
     logging.info(f"Split into {len(texts)} chunks of text")
 
     # Create embeddings
-    embeddings = HuggingFaceInstructEmbeddings(
-        model_name=EMBEDDING_MODEL_NAME,
-        cache_folder = "./models",
-        model_kwargs={"device": device_type},
-    )
+    if EMBEDDING_TYPE == "hf":
+        embeddings = HuggingFaceInstructEmbeddings(
+            model_name=EMBEDDING_MODEL_NAME,
+            cache_folder = "./models",
+            model_kwargs={"device": device_type},
+        )
+    elif EMBEDDING_TYPE == "ollama":
+        embeddings = OllamaEmbeddings(
+            model=EMBEDDING_MODEL_NAME
+        )
+    else:
+        raise NotImplementedError
+
     # change the embedding type here if you are running into issues.
     # These are much smaller embeddings and will work for most appications
     # If you use HuggingFaceEmbeddings, make sure to also use the same in the

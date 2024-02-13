@@ -1,7 +1,7 @@
 import torch
 # from auto_gptq import AutoGPTQForCausalLM
 from huggingface_hub import hf_hub_download
-from langchain.llms import LlamaCpp
+from langchain_community.llms import LlamaCpp
 
 from transformers import (
     AutoModelForCausalLM,

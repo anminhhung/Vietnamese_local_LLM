@@ -7,14 +7,16 @@ from langdetect import detect
 
 import langchain 
 from langchain.chains import RetrievalQA
-from langchain.embeddings import HuggingFaceInstructEmbeddings
-from langchain.llms import HuggingFacePipeline
+from langchain_community.embeddings import HuggingFaceInstructEmbeddings
+from langchain_community.llms.huggingface_pipeline import HuggingFacePipeline
+
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler  # for streaming response
 from langchain.callbacks.manager import CallbackManager
 from src.nlp_preprocessing import Translation
 from langchain.retrievers.document_compressors import EmbeddingsFilter
 from langchain.retrievers import ContextualCompressionRetriever
-from langchain.schema.retriever import BaseRetriever, Document
+from langchain.schema.retriever import BaseRetriever
+from langchain.docstore.document import Document
 from langchain.callbacks.manager import CallbackManagerForRetrieverRun
 from langchain.cache import SQLiteCache
 

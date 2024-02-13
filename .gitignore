@@ -3,7 +3,6 @@ DB/
 *.log
 models/
 myEnv/
-SOURCE_ZALO_MATH/
 local_chat_history/
 *.ipynb
 .vscode
@@ -14,3 +13,4 @@ local_chat_history/
 SOURCE_DOCUMENTS/
 data/
 Modelfile
+data/*

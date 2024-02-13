@@ -1,5 +1,5 @@
-import googletrans
-import translate
+# import googletrans
+# import translate
 
 class Translation():
     def __init__(self, from_lang='vi', to_lang='en', mode='google'):
