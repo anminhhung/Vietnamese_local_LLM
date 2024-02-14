@@ -10,7 +10,7 @@ MODEL:
 
   USE_HISTORY: True
   USE_RETRIEVER: False
-  USE_TRANSLATE: True
+  USE_TRANSLATE: False
   USE_OLLAMA: True
 
   # SYSTEM_PROMPT: "
@@ -27,7 +27,7 @@ MODEL:
   MODEL_TYPE: "mistral" # ["llama", "mistral", "non_llama"],
   
   # https://huggingface.co/spaces/mteb/leaderboard
-  EMBEDDING_MODEL_NAME: "mistral" #"intfloat/multilingual-e5-large" #=> 51 #"Salesforce/SFR-Embedding-Mistral" =>58 # "intfloat/e5-mistral-7b-instruct" => 56.89
+  EMBEDDING_MODEL_NAME: "e5-mistral" #"intfloat/multilingual-e5-large" #=> 51 #"Salesforce/SFR-Embedding-Mistral" =>58 # "intfloat/e5-mistral-7b-instruct" => 56.89
   EMBEDDING_TYPE: "ollama" # ["hf", "ollama"]
   
   # MODEL_ID: "vilm/vinallama-7b-chat-GGUF"

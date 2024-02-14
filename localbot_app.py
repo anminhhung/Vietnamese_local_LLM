@@ -9,24 +9,18 @@ import asyncio
 from fastapi import FastAPI
 
 import langchain 
-from langchain.chains import RetrievalQA, ConversationalRetrievalChain
-from langchain.embeddings import HuggingFaceInstructEmbeddings
-from langchain.llms import HuggingFacePipeline
-from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler  # for streaming response
-from langchain.callbacks.manager import CallbackManager, AsyncCallbackManager
-from langchain.callbacks.base import BaseCallbackHandler
+from langchain.chains import RetrievalQA
+from langchain_community.embeddings import HuggingFaceInstructEmbeddings, OllamaEmbeddings
+from langchain_community.llms.huggingface_pipeline import HuggingFacePipeline
+from langchain.callbacks.manager import AsyncCallbackManager
 
-from src.nlp_preprocessing import Translation
 from langchain.retrievers.document_compressors import EmbeddingsFilter
 from langchain.retrievers import ContextualCompressionRetriever
-from langchain.cache import SQLiteCache
-from queue import Empty
 from src.prompt_template_utils import get_prompt_template
-from langchain.vectorstores import Chroma
-from transformers import GenerationConfig, pipeline
-from langchain.llms.vllm import VLLM, VLLMOpenAI
+from langchain_community.vectorstores.chroma import Chroma
+from langchain_community.llms.vllm import VLLM
 # from langchain.llms import Ollama
-from typing import Any, Dict, List, Optional
+from typing import List
 
 # from langchain.callbacks.streaming_stdout_final_only import FinalStreamingStdOutCallbackHandler
 
@@ -39,16 +33,15 @@ from src.chains.pipeline import BatchRetrievalQA
 from src.chains.llm_chains import StreamingVLLM
 
 from src.load_models import (
-    load_quantized_model_awq,
     load_quantized_model_gguf_ggml,
-    load_quantized_model_qptq,
-    load_full_model,
 )
-from asyncio import QueueEmpty
-from src.chains.streaming import FinalStreamingStdOutCallbackHandler, MyCustomHandler, AsyncIteratorCallbackHandler
+
+
+from src.chains.streaming import AsyncIteratorCallbackHandler
 from src.llm.ollama_debug import Ollama
 from src.constants import (
     EMBEDDING_MODEL_NAME,
+    EMBEDDING_TYPE,
     PERSIST_DIRECTORY,
     MODEL_ID,
     MODEL_BASENAME,
@@ -59,7 +52,7 @@ from src.constants import (
     cfg
 )
 
-from googletrans import Translator
+# from googletrans import Translator
 
 handler = AsyncIteratorCallbackHandler()
 
@@ -89,7 +82,7 @@ class LocalBot:
         os.environ["OMP_NUM_THREADS"] = "{}".format(cfg.RAY_CONFIG.OMP_NUM_THREADS)
         self.qa_pipeline = self.setup_retrieval_qa_pipeline()
         self.loop = asyncio.get_running_loop()
-        self.translator = Translator()
+        # self.translator = Translator()
         self.use_translate = cfg.MODEL.USE_TRANSLATE
 
     def setup_retrieval_qa_pipeline(self):
@@ -115,8 +108,6 @@ class LocalBot:
                     item["result"] = self.translator.translate(item["result"], dest="vi").text
 
                 for token in item['result'].split(' '):
-                    print("item['result']: ",item['result'])
-
                     await asyncio.sleep(0.01)
                     yield token + ' '
         else:
@@ -248,7 +239,19 @@ class LocalBot:
         - The QA system retrieves relevant documents using the retriever and then answers questions based on those documents.
         """
 
-        embeddings = HuggingFaceInstructEmbeddings(model_name=EMBEDDING_MODEL_NAME, model_kwargs={"device": device_type})
+        # Create embeddings
+        if EMBEDDING_TYPE == "hf":
+            embeddings = HuggingFaceInstructEmbeddings(
+                model_name=EMBEDDING_MODEL_NAME,
+                cache_folder = "./models",
+                model_kwargs={"device": device_type},
+            )
+        elif EMBEDDING_TYPE == "ollama":
+            embeddings = OllamaEmbeddings(
+                model=EMBEDDING_MODEL_NAME
+            )
+        else:
+            raise NotImplementedError        
         # uncomment the following line if you used HuggingFaceEmbeddings in the ingest.py
         # embeddings = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL_NAME)
 

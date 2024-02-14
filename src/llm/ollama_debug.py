@@ -122,7 +122,6 @@ class _OllamaCommon(BaseLanguageModel):
         stop: Optional[List[str]] = None,
         **kwargs: Any,
     ) -> Iterator[str]:
-        print("HELLOOOO")
         if self.stop is not None and stop is not None:
             raise ValueError("`stop` found in both the input and default params.")
         elif self.stop is not None:
@@ -190,11 +189,9 @@ class Ollama(BaseLLM, _OllamaCommon):
                 response = ollama("Tell me a joke.")
         """
         # TODO: add caching here.
-        print("CALL GENERATE ", prompts)
 
         generations = []
         for prompt in prompts:
-            print("PROMPT IN LOOP: ", prompt)
             final_chunk: Optional[GenerationChunk] = None
             for stream_resp in self._create_stream(prompt, stop, **kwargs):
                 if stream_resp:
@@ -224,8 +221,6 @@ class Ollama(BaseLLM, _OllamaCommon):
 
             if stream_resp:
                 chunk = _stream_response_to_generation_chunk(stream_resp)
-                print("CHUNK in OLLAMA: ", chunk)
-
                 yield chunk
                 if run_manager:
                     run_manager.on_llm_new_token(

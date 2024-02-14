@@ -31,9 +31,7 @@ from transformers import (
 )
 
 from src.load_models import (
-    load_quantized_model_awq,
     load_quantized_model_gguf_ggml,
-    load_quantized_model_qptq,
     load_full_model,
 )
 

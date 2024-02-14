@@ -159,7 +159,6 @@ class AsyncIteratorCallbackHandler(AsyncCallbackHandler):
 
     async def on_llm_new_token(self, token: str, **kwargs: Any) -> None:
         if token is not None and token != "":
-            print("NEW TOKEN:", token)
             self.queue.put_nowait(token)
 
     async def on_llm_end(self, response: LLMResult, **kwargs: Any) -> None:
