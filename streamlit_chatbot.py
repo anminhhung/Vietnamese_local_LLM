@@ -3,7 +3,7 @@ import logging
 import requests
 import ray
 import streamlit as st
-import src.utils as utils
+from src import utils
 
 
 def send_query(text):
