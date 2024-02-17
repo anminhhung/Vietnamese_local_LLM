@@ -12,7 +12,7 @@ from langchain.document_loaders import JSONLoader, MathpixPDFLoader
 import sys 
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-from src.constants import (
+from src.langchain.constants import (
     CHROMA_SETTINGS,
     DOCUMENT_MAP,
     EMBEDDING_MODEL_NAME,

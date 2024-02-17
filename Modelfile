@@ -1,1 +1,1 @@
-FROM ./vitral-7b-chat.Q8_0.gguf
+FROM ./qwen-14b-chat-q4_0.gguf

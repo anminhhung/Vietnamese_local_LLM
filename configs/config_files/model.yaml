@@ -9,8 +9,8 @@ MODEL:
   TEMPERATURE: 0.2
 
   USE_HISTORY: True
-  USE_RETRIEVER: False
-  USE_TRANSLATE: True
+  USE_RETRIEVER: True
+  USE_TRANSLATE: False
   USE_OLLAMA: True
 
   # SYSTEM_PROMPT: "
@@ -36,7 +36,7 @@ MODEL:
   # MODEL_ID: "mistralai/Mistral-7B-Instruct-v0.2"
   # MODEL_BASENAME: ""
   
-  MODEL_ID: "mistral" # vistral #mistral 
+  MODEL_ID: "vistral" # "Qwen/Qwen1.5-7B-Chat-AWQ" # vistral #mistral  # qwen14B
   MODEL_BASENAME: ""
 
   # MODEL_ID: "qnguyen3/quan-1.8b-chat"
