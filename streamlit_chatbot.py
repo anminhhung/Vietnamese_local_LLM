@@ -4,7 +4,6 @@ import requests
 import ray
 import streamlit as st
 import src.utils as utils
-from googletrans import Translator
 
 
 def send_query(text):
@@ -28,7 +27,6 @@ def run_app():
         
     # Initialize the QA system using caching
     # translater = Translation(from_lang="en", to_lang='vi', mode='translate') 
-    translator = Translator()
     if query := st.chat_input():
         st.session_state.messages.append({"role": "user", "content": query})
         st.chat_message("user").write(query)

@@ -64,18 +64,17 @@ class LocalBot:
         # langchain.llm_cache = SQLiteCache(database_path=cfg.STORAGE.CACHE_DB_PATH)
         return self.create_retrieval_qa_pipeline(cfg.MODEL.DEVICE, cfg.MODEL.USE_HISTORY, cfg.MODEL.USE_RETRIEVER)
 
-    async def agenerate_response(self, query):
-        streaming_response = self.qa_pipeline.query(query)
-        streaming_response.print_response_stream()
+    async def agenerate_response(self, streaming_response):
         for text in streaming_response.response_gen:
             print(text, end="", flush=True)
             yield text
 
 
     @app.post("/api/stream")
-    async def get_streaming_response(self, query):
+    def get_streaming_response(self, query):
         print("Query: ", query)
-        return StreamingResponse(self.agenerate_response(query), media_type="text/plain")
+        streaming_response = self.qa_pipeline.query(query)
+        return StreamingResponse(self.agenerate_response(streaming_response), media_type="text/plain")
 
     @app.post("/api/generate")
     def generate_response(self, query) -> List[str]:   
@@ -131,7 +130,7 @@ class LocalBot:
         storage_context = StorageContext.from_defaults(vector_store=vector_store)
         index = VectorStoreIndex.from_vector_store(vector_store, storage_context=storage_context, embed_model=embed_model)
 
-        return index.as_query_engine(llm =llm, streaming=False)
+        return index.as_query_engine(llm =llm, streaming=True)
 
 # if __name__ == "__main__":
 logging.basicConfig(format="%(asctime)s - %(levelname)s - %(filename)s:%(lineno)s - %(message)s", level=logging.INFO)

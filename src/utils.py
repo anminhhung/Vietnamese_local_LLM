@@ -2,8 +2,6 @@ import os
 import csv
 from datetime import datetime
 import sys
-import googletrans
-from googletrans import Translator
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from src.constants import cfg
 
