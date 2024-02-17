@@ -13,10 +13,10 @@ from langchain.embeddings import HuggingFaceInstructEmbeddings
 from langchain.llms import HuggingFacePipeline
 from langchain.callbacks.manager import AsyncCallbackManager
 
-from src.nlp_preprocessing import Translation
+from src.langchain.nlp_preprocessing import Translation
 from langchain.retrievers.document_compressors import EmbeddingsFilter
-from src.prompt_template_utils import get_prompt_template
-from langchain.vectorstores import Chroma
+from src.langchain.prompt_template_utils import get_prompt_template
+from langchain_community.vectorstores.chroma import Chroma
 from transformers import pipeline
 from langchain.llms.vllm import VLLM
 # from langchain.llms import Ollama
@@ -24,20 +24,20 @@ from typing import List
 from starlette.responses import StreamingResponse, Response
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
-from src.chains.retrievers import DummyRetriever
-from src.chains.pipeline import BatchRetrievalQA
-from src.chains.llm_chains import StreamingVLLM
+from src.langchain.chains.retrievers import DummyRetriever
+from src.langchain.chains.pipeline import BatchRetrievalQA
+from src.langchain.chains.llm_chains import StreamingVLLM
 
-from src.load_models import (
+from src.langchain.load_models import (
     load_quantized_model_awq,
     load_quantized_model_gguf_ggml,
     load_quantized_model_qptq,
     load_full_model,
 )
 
-from src.chains.streaming import AsyncIteratorCallbackHandler
-from src.llm.ollama_debug import Ollama
-from src.constants import (
+from src.langchain.chains.streaming import AsyncIteratorCallbackHandler
+from src.langchain.llm.ollama_debug import Ollama
+from src.langchain.constants import (
     EMBEDDING_MODEL_NAME,
     PERSIST_DIRECTORY,
     MODEL_ID,

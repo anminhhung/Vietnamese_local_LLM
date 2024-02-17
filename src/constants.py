@@ -4,8 +4,6 @@ import os
 from chromadb.config import Settings
 
 # https://python.langchain.com/en/latest/modules/indexes/document_loaders/examples/excel.html?highlight=xlsx#microsoft-excel
-from langchain.document_loaders import CSVLoader, PDFMinerLoader, TextLoader, UnstructuredExcelLoader, Docx2txtLoader
-from langchain.document_loaders import UnstructuredFileLoader, UnstructuredMarkdownLoader, JSONLoader, MathpixPDFLoader
 from configs.config import get_config
 
 cfg = get_config()
@@ -44,22 +42,6 @@ N_BATCH = cfg.MODEL.N_BATCH
 ### From experimenting with the Llama-2-7B-Chat-GGML model on 8GB VRAM, these values work:
 # N_GPU_LAYERS = 20
 # N_BATCH = 512
-
-
-# https://python.langchain.com/en/latest/_modules/langchain/document_loaders/excel.html#UnstructuredExcelLoader
-DOCUMENT_MAP = {
-    ".txt": TextLoader,
-    ".md": UnstructuredMarkdownLoader,
-    ".py": TextLoader,
-    # ".pdf": PDFMinerLoader,
-    ".pdf": PDFMinerLoader,
-    ".csv": CSVLoader,
-    ".xls": UnstructuredExcelLoader,
-    ".xlsx": UnstructuredExcelLoader,
-    ".docx": Docx2txtLoader,
-    ".doc": Docx2txtLoader,
-    ".json": JSONLoader,
-}
 
 EMBEDDING_MODEL_NAME = cfg.MODEL.EMBEDDING_MODEL_NAME
 MODEL_ID  = cfg.MODEL.MODEL_ID
