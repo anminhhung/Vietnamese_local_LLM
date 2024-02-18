@@ -1,6 +1,6 @@
 import requests
 
-english_text = "What is telecommunication?"
+english_text = "telecommunication là gì?"
 
 # response = requests.post(f"http://localhost:8000/api/generate?query={english_text}")
 # response.raise_for_status()

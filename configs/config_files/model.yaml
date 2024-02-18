@@ -36,7 +36,7 @@ MODEL:
   # MODEL_ID: "mistralai/Mistral-7B-Instruct-v0.2"
   # MODEL_BASENAME: ""
   
-  MODEL_ID: "mistral" # "Qwen/Qwen1.5-7B-Chat-AWQ" # vistral #mistral  # qwen14B
+  MODEL_ID: "ontocord/vistral" # "Qwen/Qwen1.5-7B-Chat-AWQ" # vistral #mistral  # qwen14B
   MODEL_BASENAME: ""
 
   # MODEL_ID: "qnguyen3/quan-1.8b-chat"
