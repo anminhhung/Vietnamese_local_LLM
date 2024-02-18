@@ -1,8 +1,7 @@
 from langchain.schema.retriever import BaseRetriever
-
+from langchain.docstore.document import Document
 from langchain.callbacks.manager import CallbackManagerForRetrieverRun
 from typing import List 
-from langchain.docstore.document import Document
 
 class DummyRetriever(BaseRetriever):
     def _get_relevant_documents(

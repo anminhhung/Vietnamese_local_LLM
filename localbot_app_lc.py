@@ -16,7 +16,7 @@ from langchain.callbacks.manager import AsyncCallbackManager
 
 from langchain.retrievers.document_compressors import EmbeddingsFilter
 from langchain.retrievers import ContextualCompressionRetriever
-from src.prompt_template_utils import get_prompt_template
+from src.langchain.prompt_template_utils import get_prompt_template
 from langchain_community.vectorstores.chroma import Chroma
 from langchain_community.llms.vllm import VLLM
 # from langchain.llms import Ollama
@@ -25,20 +25,19 @@ from typing import List
 # from langchain.callbacks.streaming_stdout_final_only import FinalStreamingStdOutCallbackHandler
 
 from starlette.responses import StreamingResponse, Response
-# from langchain.callbacks.streaming_aiter import AsyncIteratorCallbackHandler
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
-from src.chains.retrievers import DummyRetriever
-from src.chains.pipeline import BatchRetrievalQA
-from src.chains.llm_chains import StreamingVLLM
+from src.langchain.chains.retrievers import DummyRetriever
+from src.langchain.chains.pipeline import BatchRetrievalQA
+from src.langchain.chains.llm_chains import StreamingVLLM
 
-from src.load_models import (
+from src.langchain.load_models import (
+    load_quantized_model_awq,
     load_quantized_model_gguf_ggml,
 )
 
-
-from src.chains.streaming import AsyncIteratorCallbackHandler
-from src.llm.ollama_debug import Ollama
+from src.langchain.chains.streaming import AsyncIteratorCallbackHandler
+from src.langchain.llm.ollama_debug import Ollama
 from src.constants import (
     EMBEDDING_MODEL_NAME,
     EMBEDDING_TYPE,

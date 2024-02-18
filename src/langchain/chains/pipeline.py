@@ -1,7 +1,6 @@
 from langchain.chains.retrieval_qa.base import BaseRetrievalQA
 from langchain.schema.retriever import BaseRetriever
 from langchain.docstore.document import Document
-
 import inspect
 from langchain.pydantic_v1 import Extra, Field, root_validator
 from typing import Any, Dict, List, Optional, Tuple

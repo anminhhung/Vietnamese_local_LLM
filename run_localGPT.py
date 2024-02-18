@@ -6,14 +6,15 @@ import src.utils as utils
 from langdetect import detect
 
 from langchain.chains import RetrievalQA
-from langchain.embeddings import HuggingFaceInstructEmbeddings
-from langchain.llms import HuggingFacePipeline
+from langchain_community.embeddings import HuggingFaceInstructEmbeddings
+from langchain_community.llms import HuggingFacePipeline
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler  # for streaming response
 from langchain.callbacks.manager import CallbackManager
 from src.nlp_preprocessing import Translation
 from langchain.retrievers.document_compressors import EmbeddingsFilter
 from langchain.retrievers import ContextualCompressionRetriever
-from langchain.schema.retriever import BaseRetriever, Document
+from langchain.schema.retriever import BaseRetriever
+from langchain.docstore.document import Document
 from langchain.callbacks.manager import CallbackManagerForRetrieverRun
 from langchain.llms.vllm import VLLM
 
@@ -72,8 +73,9 @@ def load_model(device_type, model_id, model_basename=None, LOGGING=logging):
     """
     logging.info(f"Loading Model: {model_id}, on: {device_type}")
     logging.info("This action can take a few minutes!")
-
-    if model_basename is not None or model_basename != "":
+    if model_basename == "":
+        model_basename = None
+    if model_basename is not None:
         if ".gguf" in model_basename.lower():
             print("Load quantized model gguf")
             llm = load_quantized_model_gguf_ggml(model_id, model_basename, device_type, LOGGING)
@@ -118,7 +120,7 @@ def load_model(device_type, model_id, model_basename=None, LOGGING=logging):
         if device_type == "cpu":
             model, tokenizer = load_full_model(model_id, model_basename, device_type, LOGGING)
         else:
-            llm = VLLM(model=model_id, trust_remote_code=True, max_new_tokens=MAX_NEW_TOKENS, temperature=0.7, top_k=10, top_p=0.95, tensor_parallel_size=2)
+            llm = VLLM(model=model_id, trust_remote_code=True, max_new_tokens=MAX_NEW_TOKENS, temperature=0.7, top_k=10, top_p=0.95, tensor_parallel_size=1)
             return llm
 
 

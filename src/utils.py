@@ -2,8 +2,7 @@ import os
 import csv
 from datetime import datetime
 import sys
-# import googletrans
-# from googletrans import Translator
+
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from src.constants import cfg
 
@@ -29,28 +28,28 @@ def log_to_csv(question, answer):
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         writer.writerow([timestamp, question, answer])
 
-def backtranslate_augment(text, target_language="vi", num_augmentations=1):
-   """Augments text using backtranslation with the specified target language.
+# def backtranslate_augment(text, target_language="vi", num_augmentations=1):
+#    """Augments text using backtranslation with the specified target language.
 
-   Args:
-       text: The text to augment.
-       target_language: The language to translate the text to and back from.
-       num_augmentations: The number of augmented versions to generate.
+#    Args:
+#        text: The text to augment.
+#        target_language: The language to translate the text to and back from.
+#        num_augmentations: The number of augmented versions to generate.
 
-   Returns:
-       A list of augmented text versions.
-   """
+#    Returns:
+#        A list of augmented text versions.
+#    """
 
-   translator = Translator()
-   augmented_texts = []
+#    translator = Translator()
+#    augmented_texts = []
 
-   for _ in range(num_augmentations):
-       # Translate to target language
-       translated_text = translator.translate(text, dest=target_language).text
+#    for _ in range(num_augmentations):
+#        # Translate to target language
+#        translated_text = translator.translate(text, dest=target_language).text
 
-       # Translate back to original language
-       backtranslated_text = translator.translate(translated_text, src=target_language).text
+#        # Translate back to original language
+#        backtranslated_text = translator.translate(translated_text, src=target_language).text
 
-       augmented_texts.append(backtranslated_text)
+#        augmented_texts.append(backtranslated_text)
 
-   return augmented_texts
+#    return augmented_texts
