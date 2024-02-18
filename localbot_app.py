@@ -10,13 +10,15 @@ from fastapi import FastAPI
 
 # from langchain.llms import Ollama
 from typing import List
-sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 from llama_index.llms.ollama import Ollama
 from llama_index.embeddings.ollama import OllamaEmbedding
 from llama_index.core import VectorStoreIndex
 from llama_index.vector_stores.chroma import ChromaVectorStore
 from llama_index.core import StorageContext
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+from src.llama_index.prompt_template_utils import get_prompt_template
+
 
 from starlette.responses import StreamingResponse, Response
 import chromadb
@@ -26,9 +28,7 @@ from src.constants import (
     PERSIST_DIRECTORY,
     MODEL_ID,
     MODEL_BASENAME,
-    MAX_NEW_TOKENS,
     MODELS_PATH,
-    CHROMA_SETTINGS,
     USE_OLLAMA,
     cfg
 )
@@ -129,8 +129,14 @@ class LocalBot:
         # load the vectorstore
         storage_context = StorageContext.from_defaults(vector_store=vector_store)
         index = VectorStoreIndex.from_vector_store(vector_store, storage_context=storage_context, embed_model=embed_model)
+        
+        query_engine = index.as_query_engine(llm =llm, streaming=True)
+        prompt_template, refine_template = get_prompt_template()
+        query_engine.update_prompts(
+            {"response_synthesizer:text_qa_template": prompt_template, "response_synthesizer:refine_template": refine_template}
+        )
 
-        return index.as_query_engine(llm =llm, streaming=True)
+        return query_engine
 
 # if __name__ == "__main__":
 logging.basicConfig(format="%(asctime)s - %(levelname)s - %(filename)s:%(lineno)s - %(message)s", level=logging.INFO)

@@ -18,11 +18,14 @@ MODEL:
   #   Hãy đọc ngữ cảnh được cung cấp trước khi trả lời câu hỏi và suy nghĩ từng bước.
   # "
 
-  SYSTEM_PROMPT: " 
+  SYSTEM_PROMPT: "
     Bạn là một trợ lý ảo hữu ích, bạn sẽ sử dụng ngữ cảnh được cung cấp để trả lời các câu hỏi của người dùng. 
     Bạn hãy giúp người người dùng bằng cách đọc ngữ cảnh được cung cấp, suy nghĩ thật kỹ câu hỏi và trả lời chi tiết từng bước.
-  "
 
+    Một số quy luật cần tuân theo
+    1. Không trích dẫn trực tiếp ngữ cảnh vào trong câu trả lời
+    2. Tránh những câu như 'Dựa vào ngữ cảnh được cung cấp', ... hay 'Thông tin ngữ cảnh ...' hay tất cả những câu tương tự
+  "
 
   MODEL_TYPE: "mistral" # ["llama", "mistral", "non_llama"],
   
