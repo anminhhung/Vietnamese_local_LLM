@@ -24,14 +24,14 @@ MODEL:
 
     Một số quy luật cần tuân theo
     1. Không trích dẫn trực tiếp ngữ cảnh vào trong câu trả lời
-    2. Tránh những câu như 'Dựa vào ngữ cảnh được cung cấp', ... hay 'Thông tin ngữ cảnh ...' hay tất cả những câu tương tự
+    2. Tránh những câu như 'Dựa vào ngữ cảnh được cung cấp,...' hay 'Trong bối cảnh ...' hay tất cả những câu tương tự
   "
 
   MODEL_TYPE: "mistral" # ["llama", "mistral", "non_llama"],
   
   # https://huggingface.co/spaces/mteb/leaderboard
-  EMBEDDING_MODEL_NAME: "e5-mistral" #"intfloat/multilingual-e5-large" #=> 51 #"Salesforce/SFR-Embedding-Mistral" =>58 # "intfloat/e5-mistral-7b-instruct" => 56.89
-  EMBEDDING_TYPE: "ollama" # ["hf", "ollama"]
+  EMBEDDING_MODEL_NAME: "intfloat/multilingual-e5-large" #=> 51 #"Salesforce/SFR-Embedding-Mistral" =>58 # "intfloat/e5-mistral-7b-instruct" => 56.89
+  EMBEDDING_TYPE: "hf" # ["hf", "ollama"]
   
   # MODEL_ID: "vilm/vinallama-7b-chat-GGUF"
   # MODEL_BASENAME: "vinallama-7b-chat_q5_0.gguf"

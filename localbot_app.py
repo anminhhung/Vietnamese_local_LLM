@@ -13,6 +13,7 @@ from typing import List
 
 from llama_index.llms.ollama import Ollama
 from llama_index.embeddings.ollama import OllamaEmbedding
+from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.core import VectorStoreIndex
 from llama_index.vector_stores.chroma import ChromaVectorStore
 from llama_index.core import StorageContext
@@ -25,6 +26,7 @@ import chromadb
 
 from src.constants import (
     EMBEDDING_MODEL_NAME,
+    EMBEDDING_TYPE,
     PERSIST_DIRECTORY,
     MODEL_ID,
     MODEL_BASENAME,
@@ -121,8 +123,13 @@ class LocalBot:
 
         chroma_client = chromadb.PersistentClient(path=PERSIST_DIRECTORY)
         chroma_collection = chroma_client.get_or_create_collection("quickstart")
-        embed_model = OllamaEmbedding(model_name="e5-mistral")
         
+        if EMBEDDING_TYPE == "ollama":
+            embed_model = OllamaEmbedding(model_name=EMBEDDING_MODEL_NAME)
+        elif EMBEDDING_TYPE == "hf":
+            embed_model = HuggingFaceEmbedding(model_name=EMBEDDING_MODEL_NAME, cache_folder="./models", device=device_type)
+        else:
+            raise NotImplementedError()        
         
         vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
         logging.info("Load vectorstore successfully")

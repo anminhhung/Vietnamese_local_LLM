@@ -1,18 +1,14 @@
 import logging
 import os
-from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
 
 # import click
 import torch
 from llama_index.core import Document
 from llama_index.embeddings.ollama import OllamaEmbedding
-from llama_index.embeddings.huggingface import HuggingFaceEmbedding
+from llama_index.embeddings.instructor import InstructorEmbedding
 
-from langchain.text_splitter import Language, RecursiveCharacterTextSplitter
 from llama_index.core import SimpleDirectoryReader, VectorStoreIndex, StorageContext
-from llama_index.core.ingestion import IngestionPipeline, IngestionCache
 from llama_index.core.extractors import TitleExtractor
-from llama_index.core.node_parser import SentenceSplitter
 from llama_index.vector_stores.chroma import ChromaVectorStore
 import chromadb
 import sys 
@@ -20,6 +16,7 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), "../.."))
 from src.constants import (
     EMBEDDING_MODEL_NAME,
+    EMBEDDING_TYPE,
     PERSIST_DIRECTORY,
     SOURCE_DIRECTORY,
     cfg
@@ -32,9 +29,14 @@ def load_documents(source_dir: str) -> list[Document]:
 
 def main(device_type="cpu"):
     chroma_client = chromadb.PersistentClient(path=PERSIST_DIRECTORY)
-    chroma_collection = chroma_client.get_or_create_collection("quickstart")
-    embed_model = OllamaEmbedding(model_name="e5-mistral")
+    chroma_collection = chroma_client.get_or_create_collection("chroma_store")
 
+    if EMBEDDING_TYPE == "ollama":
+        embed_model = OllamaEmbedding(model_name=EMBEDDING_MODEL_NAME)
+    elif EMBEDDING_TYPE == "hf":
+        embed_model = InstructorEmbedding(model_name=EMBEDDING_MODEL_NAME, cache_folder="./models", device=device_type)
+    else:
+        raise NotImplementedError()
     # Load documents and split in chunks
     logging.info(f"Loading documents from {SOURCE_DIRECTORY}")
     documents = load_documents(SOURCE_DIRECTORY)    

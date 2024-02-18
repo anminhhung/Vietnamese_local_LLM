@@ -1,6 +1,6 @@
 import requests
 
-english_text = "telecommunication là gì?"
+english_text = "Few shot prompting là gì?"
 
 # response = requests.post(f"http://localhost:8000/api/generate?query={english_text}")
 # response.raise_for_status()
