@@ -8,7 +8,7 @@ MODEL:
   SIMILARITY_THRESHOLD: 0.7
   TEMPERATURE: 0.2
 
-  USE_HISTORY: True
+  USE_HISTORY: False
   USE_RETRIEVER: True
   USE_TRANSLATE: False
   USE_OLLAMA: True
@@ -53,5 +53,6 @@ MODEL:
 
   # MODEL_ID: "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
   # MODEL_BASENAME: ""
+  RESPONSE_MODE: "refine" # ["compact", "refine", "tree_summarize"]
 
     

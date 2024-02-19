@@ -53,6 +53,8 @@ USE_OLLAMA = cfg.MODEL.USE_OLLAMA
 
 SYSTEM_PROMPT = cfg.MODEL.SYSTEM_PROMPT
 
+RESPONSE_MODE = cfg.MODEL.RESPONSE_MODE
+
 USER_PROMPT = """
 Ngữ cảnh được cung cấp như sau
 ---------------------
@@ -75,3 +77,4 @@ Với bối cảnh mới, hãy tinh chỉnh câu trả lời ban đầu để tr
 Refined Answer: 
 
 """
+

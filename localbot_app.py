@@ -32,6 +32,7 @@ from src.constants import (
     MODEL_BASENAME,
     MODELS_PATH,
     USE_OLLAMA,
+    RESPONSE_MODE,
     cfg
 )
 
@@ -136,7 +137,7 @@ class LocalBot:
         # load the vectorstore
         storage_context = StorageContext.from_defaults(vector_store=vector_store)
         index = VectorStoreIndex.from_vector_store(vector_store, storage_context=storage_context, embed_model=embed_model)
-        query_engine = index.as_query_engine(llm =llm, streaming=True)
+        query_engine = index.as_query_engine(llm =llm, streaming=True, response_mode=RESPONSE_MODE)
         prompt_template, refine_template = get_prompt_template()
         query_engine.update_prompts(
             {"response_synthesizer:text_qa_template": prompt_template, "response_synthesizer:refine_template": refine_template}
