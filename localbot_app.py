@@ -68,7 +68,7 @@ class LocalBot:
 
     async def agenerate_response(self, streaming_response):
         for text in streaming_response.response_gen:
-            print(text, end="", flush=True)
+            # print(text, end="", flush=True)
             yield text
 
 
@@ -122,7 +122,7 @@ class LocalBot:
         llm = self.load_model(device_type, model_id=MODEL_ID, model_basename=MODEL_BASENAME, use_ollama=USE_OLLAMA)
 
         chroma_client = chromadb.PersistentClient(path=PERSIST_DIRECTORY)
-        chroma_collection = chroma_client.get_or_create_collection("quickstart")
+        chroma_collection = chroma_client.get_or_create_collection("chroma_store")
         
         if EMBEDDING_TYPE == "ollama":
             embed_model = OllamaEmbedding(model_name=EMBEDDING_MODEL_NAME)
@@ -136,7 +136,6 @@ class LocalBot:
         # load the vectorstore
         storage_context = StorageContext.from_defaults(vector_store=vector_store)
         index = VectorStoreIndex.from_vector_store(vector_store, storage_context=storage_context, embed_model=embed_model)
-        
         query_engine = index.as_query_engine(llm =llm, streaming=True)
         prompt_template, refine_template = get_prompt_template()
         query_engine.update_prompts(
