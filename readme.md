@@ -8,7 +8,7 @@ pip3 install -U "ray[default]"
 
 ## Extract feature & Store db 
 ```
-python3 src/ingest.py
+python3 src/llama_index/ingest.py
 ```
 
 ## Run app 
