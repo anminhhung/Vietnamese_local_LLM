@@ -12,6 +12,7 @@ cfg = get_config()
 cfg.merge_from_file('configs/config_files/model.yaml')
 cfg.merge_from_file('configs/config_files/storage.yaml')
 cfg.merge_from_file('configs/config_files/ray.yaml')
+cfg.merge_from_file('configs/config_files/secret.yaml')
 
 # load_dotenv()
 ROOT_DIRECTORY = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..")

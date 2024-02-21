@@ -2,25 +2,27 @@ import os
 import logging
 import click
 import torch
-import utils
+import src.utils as utils
 from langdetect import detect
 
 from langchain.chains import RetrievalQA
-from langchain.embeddings import HuggingFaceInstructEmbeddings
-from langchain.llms import HuggingFacePipeline
+from langchain_community.embeddings import HuggingFaceInstructEmbeddings
+from langchain_community.llms import HuggingFacePipeline
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler  # for streaming response
 from langchain.callbacks.manager import CallbackManager
-from nlp_preprocessing import Translation
+from src.nlp_preprocessing import Translation
 from langchain.retrievers.document_compressors import EmbeddingsFilter
 from langchain.retrievers import ContextualCompressionRetriever
-from langchain.schema.retriever import BaseRetriever, Document
+from langchain.schema.retriever import BaseRetriever
+from langchain.docstore.document import Document
 from langchain.callbacks.manager import CallbackManagerForRetrieverRun
+from langchain.llms.vllm import VLLM
 
 from typing import List 
 
 callback_manager = CallbackManager([StreamingStdOutCallbackHandler()])
 
-from prompt_template_utils import get_prompt_template
+from src.prompt_template_utils import get_prompt_template
 
 # from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 from langchain.vectorstores import Chroma
@@ -29,14 +31,12 @@ from transformers import (
     pipeline,
 )
 
-from load_models import (
-    load_quantized_model_awq,
+from src.load_models import (
     load_quantized_model_gguf_ggml,
-    load_quantized_model_qptq,
     load_full_model,
 )
 
-from constants import (
+from src.constants import (
     EMBEDDING_MODEL_NAME,
     PERSIST_DIRECTORY,
     MODEL_ID,
@@ -73,7 +73,8 @@ def load_model(device_type, model_id, model_basename=None, LOGGING=logging):
     """
     logging.info(f"Loading Model: {model_id}, on: {device_type}")
     logging.info("This action can take a few minutes!")
-
+    if model_basename == "":
+        model_basename = None
     if model_basename is not None:
         if ".gguf" in model_basename.lower():
             print("Load quantized model gguf")
@@ -82,38 +83,45 @@ def load_model(device_type, model_id, model_basename=None, LOGGING=logging):
         elif ".ggml" in model_basename.lower():
             print("Load quantized model ggml")
             model, tokenizer = load_quantized_model_gguf_ggml(model_id, model_basename, device_type, LOGGING)
-        elif ".awq" in model_basename.lower():
-            print("Load quantized model awq")
-            model, tokenizer = load_quantized_model_awq(model_id, LOGGING)
+            # Load configuration from the model to avoid warnings
+            # generation_config = GenerationConfig.from_pretrained(model_id)
+            # see here for details:
+            # https://huggingface.co/docs/transformers/
+            # main_classes/text_generation#transformers.GenerationConfig.from_pretrained.returns
+
+            # Create a pipeline for text generation
+            pipe = pipeline(
+                "text-generation",
+                model=model,
+                tokenizer=tokenizer,
+                max_length=MAX_NEW_TOKENS,
+                temperature=0.2,
+                # top_p=0.95,
+                repetition_penalty=1.15,
+                # generation_config=generation_config,
+            )
+
+            local_llm = HuggingFacePipeline(pipeline=pipe)
+            logging.info("Local LLM Loaded")
+
+            return local_llm
+        elif "awq" in model_basename.lower():
+            #print("Load quantized model awq")
+            #model, tokenizer = load_quantized_model_awq(model_id, LOGGING)
+            llm = VLLM(model=model_basename, trust_remote_code=True, max_new_tokens=MAX_NEW_TOKENS, temperature=0.7, top_k=10, top_p=0.95, quantization="awq")
+            return llm
         else:
-            print("Load quantized model qptq")
-            model, tokenizer = load_quantized_model_qptq(model_id, model_basename, device_type, LOGGING)
+            print("Load gptq model")
+            llm = VLLM(model=model_basename, trust_remote_code=True, max_new_tokens=MAX_NEW_TOKENS, temperature=0.7, top_k=10, top_p=0.95, quantization="gptq", dtype='float16')
+            return llm
+            #model, tokenizer = load_quantized_model_qptq(model_id, model_basename, device_type, LOGGING)
     else:
         print("load_full_model")
-        model, tokenizer = load_full_model(model_id, model_basename, device_type, LOGGING)
-
-    # Load configuration from the model to avoid warnings
-    generation_config = GenerationConfig.from_pretrained(model_id)
-    # see here for details:
-    # https://huggingface.co/docs/transformers/
-    # main_classes/text_generation#transformers.GenerationConfig.from_pretrained.returns
-
-    # Create a pipeline for text generation
-    pipe = pipeline(
-        "text-generation",
-        model=model,
-        tokenizer=tokenizer,
-        max_length=MAX_NEW_TOKENS,
-        temperature=0.2,
-        # top_p=0.95,
-        repetition_penalty=1.15,
-        generation_config=generation_config,
-    )
-
-    local_llm = HuggingFacePipeline(pipeline=pipe)
-    logging.info("Local LLM Loaded")
-
-    return local_llm
+        if device_type == "cpu":
+            model, tokenizer = load_full_model(model_id, model_basename, device_type, LOGGING)
+        else:
+            llm = VLLM(model=model_id, trust_remote_code=True, max_new_tokens=MAX_NEW_TOKENS, temperature=0.7, top_k=10, top_p=0.95, tensor_parallel_size=1)
+            return llm
 
 
 def retrieval_qa_pipline(device_type, use_history, promptTemplate_type="llama", use_retriever=True):
@@ -321,6 +329,7 @@ def main(device_type, show_sources, use_history, model_type, save_qa, no_retriev
         print(query)
         print("\n> Answer:")
         print(answer)
+        print("Num tokens: ", len(answer.split(" ")))
 
         if show_sources:  # this is a flag that you can set to disable showing answers.
             # # Print the relevant sources used for the answer

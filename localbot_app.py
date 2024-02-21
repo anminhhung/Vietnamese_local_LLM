@@ -123,7 +123,7 @@ class LocalBot:
         llm = self.load_model(device_type, model_id=MODEL_ID, model_basename=MODEL_BASENAME, use_ollama=USE_OLLAMA)
 
         chroma_client = chromadb.PersistentClient(path=PERSIST_DIRECTORY)
-        chroma_collection = chroma_client.get_or_create_collection("chroma_store")
+        chroma_collection = chroma_client.get_or_create_collection("chroma_db")
         
         if EMBEDDING_TYPE == "ollama":
             embed_model = OllamaEmbedding(model_name=EMBEDDING_MODEL_NAME)

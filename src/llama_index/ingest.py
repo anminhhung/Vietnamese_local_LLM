@@ -11,6 +11,7 @@ from llama_index.core import SimpleDirectoryReader, VectorStoreIndex, StorageCon
 from llama_index.core.extractors import TitleExtractor
 from llama_index.vector_stores.chroma import ChromaVectorStore
 import chromadb
+from llama_parse import LlamaParse
 import sys 
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "../.."))
@@ -29,7 +30,7 @@ def load_documents(source_dir: str) -> list[Document]:
 
 def main(device_type="cpu"):
     chroma_client = chromadb.PersistentClient(path=PERSIST_DIRECTORY)
-    chroma_collection = chroma_client.get_or_create_collection("chroma_store")
+    chroma_collection = chroma_client.get_or_create_collection("chroma_db")
 
     if EMBEDDING_TYPE == "ollama":
         embed_model = OllamaEmbedding(model_name=EMBEDDING_MODEL_NAME)
@@ -39,15 +40,29 @@ def main(device_type="cpu"):
         raise NotImplementedError()
     # Load documents and split in chunks
     logging.info(f"Loading documents from {SOURCE_DIRECTORY}")
-    documents = load_documents(SOURCE_DIRECTORY)    
+    documents = load_documents(SOURCE_DIRECTORY) 
+
 
     vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
     storage_context = StorageContext.from_defaults(vector_store=vector_store)
-
-    index = VectorStoreIndex.from_documents(
-        documents, storage_context=storage_context, embed_model=embed_model, show_progress=True
-    )
     
+    if cfg.MODEL.USE_LLAMA_PARSE:
+        parser = LlamaParse(
+            api_key=cfg.SECRET.LLAMA_CLOUD_KEY,  # can also be set in your env as LLAMA_CLOUD_API_KEY
+            result_type="markdown",  # "markdown" and "text" are available
+            num_workers=4, # if multiple files passed, split in `num_workers` API calls
+            verbose=True
+        )
+        file_extractor = {".pdf": parser}
+
+        index = VectorStoreIndex.from_documents(
+            documents, storage_context=storage_context, embed_model=embed_model, show_progress=True, file_extractor=file_extractor
+        )
+    else:
+        index = VectorStoreIndex.from_documents(
+            documents, storage_context=storage_context, embed_model=embed_model, show_progress=True
+        )
+        
 
 
 if __name__ == "__main__":
