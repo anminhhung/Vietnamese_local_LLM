@@ -29,6 +29,7 @@ requests
 # Streamlit related
 streamlit
 Streamlit-extras
+streamlit-authenticator==0.1.5
 
 # Excel File Manipulation
 openpyxl

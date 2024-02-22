@@ -54,6 +54,6 @@ MODEL:
   # MODEL_ID: "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
   # MODEL_BASENAME: ""
   RESPONSE_MODE: "refine" # ["compact", "refine", "tree_summarize"]
-  USE_LLAMA_PARSE: True
+  USE_LLAMA_PARSE: False
 
     
