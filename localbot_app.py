@@ -12,6 +12,7 @@ from fastapi import FastAPI
 from typing import List
 
 from llama_index.llms.ollama import Ollama
+from llama_index.llms.openai import OpenAI
 from llama_index.embeddings.ollama import OllamaEmbedding
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.core import VectorStoreIndex
@@ -31,7 +32,7 @@ from src.constants import (
     MODEL_ID,
     MODEL_BASENAME,
     MODELS_PATH,
-    USE_OLLAMA,
+    SERVICE,
     RESPONSE_MODE,
     cfg
 )
@@ -86,7 +87,7 @@ class LocalBot:
 
         
 
-    def load_model(self, device_type="cpu", model_id="", model_basename=None, LOGGING=logging, use_ollama=False):
+    def load_model(self, device_type="cpu", model_id="", model_basename=None, LOGGING=logging, service=False):
         """
         Select a model for text generation using the HuggingFace library.
         If you are running this for the first time, it will download a model for you.
@@ -107,8 +108,10 @@ class LocalBot:
         logging.info(f"Loading Model: {model_id}, on: {device_type}")
         logging.info("This action can take a few minutes!")
 
-        if use_ollama:
+        if service == "ollama":
             llm = Ollama(model=model_id, temperature=cfg.MODEL.TEMPERATURE)
+        elif service == "openai":
+            llm = OpenAI(model=model_id, temperature=cfg.MODEL.TEMPERATURE)
         else:
             raise NotImplementedError("The implementation for other types of LLMs are not ready yet!")    
         return llm
@@ -120,7 +123,7 @@ class LocalBot:
 
         """
 
-        llm = self.load_model(device_type, model_id=MODEL_ID, model_basename=MODEL_BASENAME, use_ollama=USE_OLLAMA)
+        llm = self.load_model(device_type, model_id=MODEL_ID, model_basename=MODEL_BASENAME, service=SERVICE)
 
         chroma_client = chromadb.PersistentClient(path=PERSIST_DIRECTORY)
         chroma_collection = chroma_client.get_or_create_collection("chroma_db")
