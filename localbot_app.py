@@ -59,6 +59,8 @@ app = FastAPI()
 class LocalBot:
     def __init__(self):
         os.environ["OMP_NUM_THREADS"] = "{}".format(cfg.RAY_CONFIG.OMP_NUM_THREADS)
+        self.stream = cfg.MODEL.STREAM
+
         self.qa_pipeline = self.setup_retrieval_qa_pipeline()
         self.loop = asyncio.get_running_loop()
         # self.translator = Translator()
@@ -69,9 +71,12 @@ class LocalBot:
         return self.create_retrieval_qa_pipeline(cfg.MODEL.DEVICE, cfg.MODEL.USE_HISTORY, cfg.MODEL.USE_RETRIEVER)
 
     async def agenerate_response(self, streaming_response):
-        for text in streaming_response.response_gen:
-            # print(text, end="", flush=True)
-            yield text
+        if self.stream:
+            for text in streaming_response.response_gen:
+                # print(text, end="", flush=True)
+                yield text
+        else:
+            yield str(streaming_response)
 
 
     @app.post("/api/stream")
@@ -83,11 +88,17 @@ class LocalBot:
     @app.post("/api/generate")
     def generate_response(self, query) -> List[str]:   
         print("Query: ", query)
-        return Response(str(self.qa_pipeline.query(query)))
+        response = []
+        if self.stream:
+            for chunk in self.qa_pipeline.query(query).response_gen:
+                response.append(str(chunk))
+            return Response("".join(response))
+        else:
+            return Response(str(self.qa_pipeline.query(query)))
 
         
 
-    def load_model(self, device_type="cpu", model_id="", model_basename=None, LOGGING=logging, service=False):
+    def load_model(self, device_type="cpu", model_id="", model_basename=None, LOGGING=logging, service="ollama"):
         """
         Select a model for text generation using the HuggingFace library.
         If you are running this for the first time, it will download a model for you.
@@ -140,7 +151,7 @@ class LocalBot:
         # load the vectorstore
         storage_context = StorageContext.from_defaults(vector_store=vector_store)
         index = VectorStoreIndex.from_vector_store(vector_store, storage_context=storage_context, embed_model=embed_model)
-        query_engine = index.as_query_engine(llm =llm, streaming=True, response_mode=RESPONSE_MODE)
+        query_engine = index.as_query_engine(llm =llm, streaming=self.stream, response_mode=RESPONSE_MODE)
         prompt_template, refine_template = get_prompt_template()
         query_engine.update_prompts(
             {"response_synthesizer:text_qa_template": prompt_template, "response_synthesizer:refine_template": refine_template}

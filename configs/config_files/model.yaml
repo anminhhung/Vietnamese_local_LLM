@@ -4,7 +4,9 @@ MODEL:
   N_BATCH: 512
   DEVICE: 'cuda' # ["cpu", "cuda", "ipu", "xpu", "mkldnn", "opengl", "opencl", "ideep", "hip", 
                 #  "ve", "fpga", "ort", "xla", "lazy", "vulkan", "mps", "meta", "hpu", "mtia"]
+  STREAM: True
 
+  
   SIMILARITY_THRESHOLD: 0.7
   TEMPERATURE: 0.2
 
@@ -56,5 +58,6 @@ MODEL:
   # MODEL_BASENAME: ""
   RESPONSE_MODE: "refine" # ["compact", "refine", "tree_summarize"]
   USE_LLAMA_PARSE: False
+
 
     
