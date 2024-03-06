@@ -3,6 +3,9 @@ DB/
 *.log
 models/
 myEnv/
+envBE/
+envUI/
+
 local_chat_history/
 *.ipynb
 .vscode
@@ -14,3 +17,6 @@ SOURCE_DOCUMENTS/
 data/
 Modelfile
 data/*
+
+tmp_data_dir/*
+tmp_source/*

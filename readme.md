@@ -1,6 +1,7 @@
 # Local LLM 
 
 ## Setup 
+
 ```
 pip3 install -r requirements.txt
 pip3 install -U "ray[default]"
@@ -9,6 +10,28 @@ pip3 install -U "ray[default]"
 ## Extract feature & Store db 
 ```
 python3 src/llama_index/ingest.py
+```
+
+## Using different models
+### OpenAI
+In setting file
+```
+SERVICE: openai
+
+```
+
+run this in script in terminal
+
+```
+export OPENAI_API_KEY=XXXXX
+```
+
+### Ollama
+In setting file
+```
+SERVICE: ollama
+MODEL_ID: "ontocord/vistral" # or any other model supported by ollama
+
 ```
 
 ## Run app 

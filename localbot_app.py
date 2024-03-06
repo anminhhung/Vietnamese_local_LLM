@@ -73,7 +73,7 @@ class LocalBot:
     async def agenerate_response(self, streaming_response):
         if self.stream:
             for text in streaming_response.response_gen:
-                # print(text, end="", flush=True)
+                print(text)
                 yield text
         else:
             yield str(streaming_response)
@@ -90,7 +90,9 @@ class LocalBot:
         print("Query: ", query)
         response = []
         if self.stream:
-            for chunk in self.qa_pipeline.query(query).response_gen:
+            streaming_response = self.qa_pipeline.query(query)
+            print(streaming_response)
+            for chunk in streaming_response.response_gen:
                 response.append(str(chunk))
             return Response("".join(response))
         else:
