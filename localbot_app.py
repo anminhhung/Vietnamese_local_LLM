@@ -73,7 +73,6 @@ class LocalBot:
     async def agenerate_response(self, streaming_response):
         if self.stream:
             for text in streaming_response.response_gen:
-                print(text)
                 yield text
         else:
             yield str(streaming_response)
@@ -122,8 +121,10 @@ class LocalBot:
         logging.info("This action can take a few minutes!")
 
         if service == "ollama":
+            logging.info(f"Loading Ollama Model: {model_id}")
             llm = Ollama(model=model_id, temperature=cfg.MODEL.TEMPERATURE)
         elif service == "openai":
+            logging.info(f"Loading OpenAI Model: {model_id}")
             llm = OpenAI(model=model_id, temperature=cfg.MODEL.TEMPERATURE)
         else:
             raise NotImplementedError("The implementation for other types of LLMs are not ready yet!")    
