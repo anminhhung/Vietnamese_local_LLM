@@ -32,7 +32,7 @@ export OPENAI_API_KEY=XXXXX
 ```
 
 ### Ollama
-In setting file
+In ./configs/config_files/model.yaml file
 ```
 SERVICE: ollama
 ...
