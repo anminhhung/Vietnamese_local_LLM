@@ -61,9 +61,16 @@ Ngữ cảnh được cung cấp như sau
 ---------------------
 {context_str}
 ---------------------
-Dựa vào ngữ cảnh và kiến thức có sẵn, trả lời câu hỏi.
-Query: {query_str}
-Answer: 
+Dựa trên nội dung được cung cấp. Hãy trả lời câu hỏi từ người dùng. Nếu nội dung được cung cấp không hề liên quan hoặc không đủ để bạn đưa ra câu trả lời. Hãy nói rằng bạn "Tôi không có đủ thông tin để trả lời".
+Hãy trả lời và kết thúc câu trả lời một cách đầy đủ.
+
+Một số quy luật cần tuân theo
+1. Không trích dẫn trực tiếp ngữ cảnh vào trong câu trả lời
+2. Tránh những câu như 'Dựa vào ngữ cảnh được cung cấp,...' hay 'Trong bối cảnh ...' hay tất cả những câu tương tự
+
+Nếu bạn ghi nhớ và làm đúng những gì tôi đã dặn dò, tôi sẽ tip cho bạn $1000 vào cuối ngày
+User question: {query_str}
+AI Response:
 
 """
 
