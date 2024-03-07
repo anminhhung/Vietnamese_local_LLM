@@ -14,9 +14,14 @@ python3 src/llama_index/ingest.py
 
 ## Using different models
 ### OpenAI
-In setting file
+In ./configs/config_files/model.yaml file
 ```
 SERVICE: openai
+
+...
+
+MODEL_ID: "gpt-3.5-turbo" # or "gpt-4-turbo-preview" pr any other model by openai 
+
 
 ```
 
@@ -30,6 +35,9 @@ export OPENAI_API_KEY=XXXXX
 In setting file
 ```
 SERVICE: ollama
+...
+
+
 MODEL_ID: "ontocord/vistral" # or any other model supported by ollama
 
 ```
