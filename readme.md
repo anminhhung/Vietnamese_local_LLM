@@ -7,6 +7,12 @@ pip3 install -r requirements.txt
 pip3 install -U "ray[default]"
 ```
 
+Install Ollama
+```
+curl -fsSL https://ollama.com/install.sh | sh
+
+```
+
 ## Extract feature & Store db 
 ```
 python3 src/llama_index/ingest.py
