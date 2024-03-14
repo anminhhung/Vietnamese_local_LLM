@@ -115,8 +115,9 @@ class LocalBot:
         #     raise HTTPException(status_code=500, detail=f"Failed to read the CSV file: {e}")
         
         data = pd.read_csv(file.file)
-        print(data.keys())
-        llm = OpenAIPandas(mode="gpt-3.5-turbo-0125")
+        openai_key = os.getenv('OPENAI_API_KEY')
+
+        llm = OpenAIPandas(mode="gpt-3.5-turbo-0125", api_token=openai_key)
         smart_df = SmartDataframe(data, config={"llm": llm, "enable_cache": False})
         result = smart_df.chat(query)
         return Response(result)
