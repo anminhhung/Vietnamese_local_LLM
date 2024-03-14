@@ -7,20 +7,24 @@ from typing import List
 from ray import serve
 import asyncio
 from fastapi import FastAPI
-
+import time 
 # from langchain.llms import Ollama
 from typing import List
 
 from llama_index.llms.ollama import Ollama
 from llama_index.llms.openai import OpenAI
 from llama_index.embeddings.ollama import OllamaEmbedding
+from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.core import VectorStoreIndex
 from llama_index.vector_stores.chroma import ChromaVectorStore
 from llama_index.core import StorageContext
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from src.llama_index.prompt_template_utils import get_prompt_template
-
+from fastapi import FastAPI, File, UploadFile, Form, HTTPException
+import pandas as pd
+from pandasai import SmartDataframe
+from pandasai.llm import OpenAI as OpenAIPandas
 
 from starlette.responses import StreamingResponse, Response
 import chromadb
@@ -97,7 +101,26 @@ class LocalBot:
         else:
             return Response(str(self.qa_pipeline.query(query)))
 
+    
+    @app.post("/api/data-analytic/")
+    def generate_data_analytic(self, file: UploadFile = File(...), query: str = Form(...)):
+        # Validate file is a csv
+        print("FILE OBJ: ", file)
+        if not file.filename.endswith('.csv'):
+            raise HTTPException(status_code=400, detail="The uploaded file is not a CSV file.")
         
+        # try:
+        #     dataframe = pd.read_csv(file.file)
+        # except Exception as e:
+        #     raise HTTPException(status_code=500, detail=f"Failed to read the CSV file: {e}")
+        
+        data = pd.read_csv(file.file)
+        print(data.keys())
+        llm = OpenAIPandas(mode="gpt-3.5-turbo-0125")
+        smart_df = SmartDataframe(data, config={"llm": llm, "enable_cache": False})
+        result = smart_df.chat(query)
+        return Response(result)
+
 
     def load_model(self, device_type="cpu", model_id="", model_basename=None, LOGGING=logging, service="ollama"):
         """
@@ -146,6 +169,8 @@ class LocalBot:
             embed_model = OllamaEmbedding(model_name=EMBEDDING_MODEL_NAME)
         elif EMBEDDING_TYPE == "hf":
             embed_model = HuggingFaceEmbedding(model_name=EMBEDDING_MODEL_NAME, cache_folder="./models", device=device_type)
+        elif  EMBEDDING_TYPE == "openai":
+            embed_model = OpenAIEmbedding(model=EMBEDDING_MODEL_NAME)
         else:
             raise NotImplementedError()        
         

@@ -1,6 +1,6 @@
 import requests
 
-english_text = "cán bộ, nhân viên tham gia chương trình đào tạo cần làm gì?"
+english_text = "Xin chào?"
 
 # response = requests.post(f"http://localhost:8000/api/generate?query={english_text}")
 # # response.raise_for_status()

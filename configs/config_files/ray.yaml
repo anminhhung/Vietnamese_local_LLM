@@ -11,6 +11,6 @@ RAY_CONFIG:
   # scale 
   OMP_NUM_THREADS: 1 
 
-  # batch inferr 
+  # batch infer
   MAX_BATCH_SIZE: 5
   BATCH_TIMEOUT: 0.1

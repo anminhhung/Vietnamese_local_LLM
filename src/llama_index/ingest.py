@@ -6,6 +6,7 @@ import torch
 from llama_index.core import Document
 from llama_index.embeddings.ollama import OllamaEmbedding
 from llama_index.embeddings.instructor import InstructorEmbedding
+from llama_index.embeddings.openai import OpenAIEmbedding
 
 from llama_index.core import SimpleDirectoryReader, VectorStoreIndex, StorageContext
 from llama_index.core.extractors import TitleExtractor
@@ -14,7 +15,7 @@ import chromadb
 from llama_parse import LlamaParse
 import sys 
 
-sys.path.append(os.path.join(os.path.dirname(__file__), "../.."))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 from src.constants import (
     EMBEDDING_MODEL_NAME,
     EMBEDDING_TYPE,
@@ -36,6 +37,8 @@ def main(device_type="cpu"):
         embed_model = OllamaEmbedding(model_name=EMBEDDING_MODEL_NAME)
     elif EMBEDDING_TYPE == "hf":
         embed_model = InstructorEmbedding(model_name=EMBEDDING_MODEL_NAME, cache_folder="./models", device=device_type)
+    elif  EMBEDDING_TYPE == "openai":
+        embed_model = OpenAIEmbedding(model=EMBEDDING_MODEL_NAME)
     else:
         raise NotImplementedError()
     # Load documents and split in chunks
