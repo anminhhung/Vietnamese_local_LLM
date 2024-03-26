@@ -11,33 +11,19 @@ import time
 # from langchain.llms import Ollama
 from typing import List
 
-from llama_index.llms.ollama import Ollama
-from llama_index.llms.openai import OpenAI
-from llama_index.embeddings.ollama import OllamaEmbedding
-from llama_index.embeddings.openai import OpenAIEmbedding
-from llama_index.embeddings.huggingface import HuggingFaceEmbedding
-from llama_index.core import VectorStoreIndex
-from llama_index.vector_stores.chroma import ChromaVectorStore
-from llama_index.core import StorageContext
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-from src.llama_index.prompt_template_utils import get_prompt_template
+from src.llm_serving.model import load_model
+
 from fastapi import FastAPI, File, UploadFile, Form, HTTPException
 import pandas as pd
 from pandasai import SmartDataframe
 from pandasai.llm import OpenAI as OpenAIPandas
 
 from starlette.responses import StreamingResponse, Response
-import chromadb
 
+from src.engine.qa_engine import create_retrieval_qa_pipeline
 from src.constants import (
-    EMBEDDING_MODEL_NAME,
-    EMBEDDING_TYPE,
-    PERSIST_DIRECTORY,
-    MODEL_ID,
-    MODEL_BASENAME,
     MODELS_PATH,
-    SERVICE,
-    RESPONSE_MODE,
     cfg
 )
 
@@ -57,8 +43,6 @@ app = FastAPI()
         "max_replicas": cfg.RAY_CONFIG.MAX_REPLICAS,
     },
 )
-# @serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": cfg.RAY_CONFIG.NUM_CPUS, 
-#                        "num_gpus": cfg.RAY_CONFIG.NUM_GPUS})
 @serve.ingress(app)
 class LocalBot:
     def __init__(self):
@@ -72,7 +56,7 @@ class LocalBot:
 
     def setup_retrieval_qa_pipeline(self):
         # langchain.llm_cache = SQLiteCache(database_path=cfg.STORAGE.CACHE_DB_PATH)
-        return self.create_retrieval_qa_pipeline(cfg.MODEL.DEVICE, cfg.MODEL.USE_HISTORY, cfg.MODEL.USE_RETRIEVER)
+        return create_retrieval_qa_pipeline(cfg.MODEL.DEVICE, stream=self.stream)
 
     async def agenerate_response(self, streaming_response):
         if self.stream:
@@ -109,11 +93,6 @@ class LocalBot:
         if not file.filename.endswith('.csv'):
             raise HTTPException(status_code=400, detail="The uploaded file is not a CSV file.")
         
-        # try:
-        #     dataframe = pd.read_csv(file.file)
-        # except Exception as e:
-        #     raise HTTPException(status_code=500, detail=f"Failed to read the CSV file: {e}")
-        
         data = pd.read_csv(file.file)
         openai_key = os.getenv('OPENAI_API_KEY')
 
@@ -123,94 +102,13 @@ class LocalBot:
         return Response(result)
 
 
-    def load_model(self, device_type="cpu", model_id="", model_basename=None, LOGGING=logging, service="ollama"):
-        """
-        Select a model for text generation using the HuggingFace library.
-        If you are running this for the first time, it will download a model for you.
-        subsequent runs will use the model from the disk.
-
-        Args:
-            device_type (str): Type of device to use, e.g., "cuda" for GPU or "cpu" for CPU.
-            model_id (str): Identifier of the model to load from HuggingFace's model hub.
-            model_basename (str, optional): Basename of the model if using quantized models.
-                Defaults to None.
-
-        Returns:
-            HuggingFacePipeline: A pipeline object for text generation using the loaded model.
-
-        Raises:
-            ValueError: If an unsupported model or device type is provided.
-        """
-        logging.info(f"Loading Model: {model_id}, on: {device_type}")
-        logging.info("This action can take a few minutes!")
-
-        if service == "ollama":
-            logging.info(f"Loading Ollama Model: {model_id}")
-            llm = Ollama(model=model_id, temperature=cfg.MODEL.TEMPERATURE)
-        elif service == "openai":
-            logging.info(f"Loading OpenAI Model: {model_id}")
-            llm = OpenAI(model=model_id, temperature=cfg.MODEL.TEMPERATURE)
-        else:
-            raise NotImplementedError("The implementation for other types of LLMs are not ready yet!")    
-        return llm
-        
-
-    def create_retrieval_qa_pipeline(self, device_type="cuda", use_history=False, use_retriever=True):
-        """
-        Initializes and returns a retrieval-based Question Answering (QA) pipeline.
-
-        """
-
-        llm = self.load_model(device_type, model_id=MODEL_ID, model_basename=MODEL_BASENAME, service=SERVICE)
-
-        chroma_client = chromadb.PersistentClient(path=PERSIST_DIRECTORY)
-        chroma_collection = chroma_client.get_or_create_collection("chroma_db")
-        
-        if EMBEDDING_TYPE == "ollama":
-            embed_model = OllamaEmbedding(model_name=EMBEDDING_MODEL_NAME)
-        elif EMBEDDING_TYPE == "hf":
-            embed_model = HuggingFaceEmbedding(model_name=EMBEDDING_MODEL_NAME, cache_folder="./models", device=device_type)
-        elif  EMBEDDING_TYPE == "openai":
-            embed_model = OpenAIEmbedding(model=EMBEDDING_MODEL_NAME)
-        else:
-            raise NotImplementedError()        
-        
-        vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
-        logging.info("Load vectorstore successfully")
-        # load the vectorstore
-        storage_context = StorageContext.from_defaults(vector_store=vector_store)
-        index = VectorStoreIndex.from_vector_store(vector_store, storage_context=storage_context, embed_model=embed_model)
-        query_engine = index.as_query_engine(llm =llm, streaming=self.stream, response_mode=RESPONSE_MODE)
-        prompt_template, refine_template = get_prompt_template()
-        query_engine.update_prompts(
-            {"response_synthesizer:text_qa_template": prompt_template, "response_synthesizer:refine_template": refine_template}
-        )
-
-        return query_engine
-
-# if __name__ == "__main__":
 logging.basicConfig(format="%(asctime)s - %(levelname)s - %(filename)s:%(lineno)s - %(message)s", level=logging.INFO)
 if not os.path.exists(MODELS_PATH):
     os.makedirs(MODELS_PATH, exist_ok=True)
 
-# ray.init(
-#     _system_config={
-#         "max_io_workers":4,
-#         "min_spilling_size": 100*1024*1024, # Spill at least 100MB at a time
-#         "object_spilling_config": json.dumps(
-#             {
-#                 "type": "filesystem",
-#                 "params":{
-#                     "directory_path": "/tmp/spill",
-#                 },
-#                 "buffer_size": 100*1024*1024, # use a 100MB buffer for writes
-#             }
-#         )
-#     }
-# )
-
 ray.init(
     object_store_memory=100 * 1024 * 1024,
+    # log_to_driver=False,
     _system_config={
         "automatic_object_spilling_enabled": True,
         "object_spilling_config": json.dumps(
